@@ -1,9 +1,14 @@
 [build]
-  publish = "netlify-updates"
-  command = ""
+  publish = "dist"
+  command = "npm run build"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
 
 [[headers]]
-  for = "/updates/*"
+  for = "/assets/*"
   [headers.values]
-    Cache-Control = "public, max-age=60"
+    Cache-Control = "public, max-age=31536000, immutable"
     X-Content-Type-Options = "nosniff"

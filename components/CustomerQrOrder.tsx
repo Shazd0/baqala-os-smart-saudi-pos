@@ -5,6 +5,7 @@ import { StorageService } from '../services/storageService';
 import { calculateRestaurantOrderTotals } from '../services/restaurantService';
 import { CloudClient } from '../services/cloudClient';
 import { FirebaseService } from '../services/firebaseService';
+import { findTableByQrValue, tableLookupCandidates } from '../services/qrOrdering';
 import ConfirmDialog from './ConfirmDialog';
 import { useToast } from './Toast';
 
@@ -68,6 +69,18 @@ function kitchenTicketsForQrOrder(order: RestaurantOrder): KitchenTicket[] {
   }));
 }
 
+async function loadCloudBootstrap(tableId: string) {
+  let lastError: unknown;
+  for (const candidate of tableLookupCandidates(tableId)) {
+    try {
+      return await CloudClient.publicQrBootstrap(candidate);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('Could not connect to the restaurant cloud server.');
+}
+
 const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
   const { toast } = useToast();
   const [tables, setTables] = useState<DiningTable[]>(() => StorageService.getTables());
@@ -79,7 +92,7 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
   const [cloudLoading, setCloudLoading] = useState(true);
   const [cloudError, setCloudError] = useState('');
   const [remoteSource, setRemoteSource] = useState<'cloud' | 'firestore' | 'local'>('local');
-  const table = cloudTable || tables.find(item => item.id === tableId);
+  const table = cloudTable || findTableByQrValue(tables, tableId);
   const branchId = table?.branchId || StorageService.getActiveBranchId();
   const branch = cloudBranch || StorageService.getBranches().find(item => item.id === branchId);
   const categories = cloudCategories.length ? cloudCategories : StorageService.getMenuCategories();
@@ -103,7 +116,7 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
   useEffect(() => {
     let active = true;
     setCloudLoading(true);
-    CloudClient.publicQrBootstrap(tableId)
+    loadCloudBootstrap(tableId)
       .then(data => {
         if (!active) return;
         setCloudTable(data.table);
@@ -124,7 +137,7 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
               FirebaseService.list<MenuCategory>('menuCategories'),
               FirebaseService.list<MenuItem>('menuItems'),
             ]);
-            const remoteTable = remoteTables.find(item => item.id === tableId);
+            const remoteTable = findTableByQrValue(remoteTables, tableId);
             if (remoteTable) {
               const remoteBranch = remoteBranches.find(item => item.id === remoteTable.branchId) || null;
               setCloudTable(remoteTable);
@@ -346,7 +359,11 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
         <div className="mx-auto mt-20 max-w-md rounded-[20px] bg-white p-8 text-center shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
           <Utensils className="mx-auto mb-4 text-[#007AFF]" size={42} />
           <h1 className="text-3xl font-black tracking-tight text-[#1C1C1E]">Table not found</h1>
-          <p className="mt-3 text-sm font-semibold text-[#8E8E93]">{cloudError || 'Please scan the QR code on your table again.'}</p>
+          <p className="mt-3 text-sm font-semibold text-[#8E8E93]">
+            {cloudError
+              ? 'We could not load this table from the restaurant database. Please ask staff to refresh or reprint the QR code.'
+              : 'Please scan the QR code on your table again.'}
+          </p>
         </div>
       </div>
     );
