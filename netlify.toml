@@ -1,6 +1,22 @@
 [build]
-  publish = "netlify-updates"
-  command = ""
+  publish = "dist"
+  command = "npm run build"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/public/qr/bootstrap"
+  to = "/.netlify/functions/public-qr-bootstrap"
+  status = 200
+
+[[redirects]]
+  from = "/public/qr/orders"
+  to = "/.netlify/functions/public-qr-orders"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
 
 [[headers]]
   for = "/updates/*"
