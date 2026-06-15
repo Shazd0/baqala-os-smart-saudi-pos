@@ -45,7 +45,7 @@ const tableStatusClass = (state: string) => {
 
 const qrUrlForTable = (table: DiningTable) => {
   const cloudUrl = getCloudBaseUrl();
-  const url = new URL(cloudUrl || window.location.href);
+  const url = new URL(cloudUrl || window.location.href, window.location.origin);
   url.search = '';
   url.searchParams.set('qrTable', table.id);
   return url.toString();

@@ -105,9 +105,25 @@ type SupplierLike = {
 
 const day = 86400000;
 
-function image(label: string, color: string, accent = '#ffffff') {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="${color}"/><stop offset="1" stop-color="#111827"/></linearGradient></defs><rect width="640" height="420" rx="42" fill="url(#g)"/><circle cx="508" cy="84" r="96" fill="${accent}" opacity=".16"/><circle cx="118" cy="336" r="124" fill="${accent}" opacity=".10"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="${accent}" font-family="Arial, sans-serif" font-size="42" font-weight="800">${label}</text></svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+const TRIAL_IMAGES = {
+  milk: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=900&q=80',
+  bread: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=900&q=80',
+  water: 'https://images.unsplash.com/photo-1523362628745-0c100150b504?auto=format&fit=crop&w=900&q=80',
+  chips: 'https://images.unsplash.com/photo-1621447504864-d8686e12698c?auto=format&fit=crop&w=900&q=80',
+  banana: 'https://images.unsplash.com/photo-1528825871115-3581a5387919?auto=format&fit=crop&w=900&q=80',
+  soap: 'https://images.unsplash.com/photo-1585421514738-01798e348b17?auto=format&fit=crop&w=900&q=80',
+  energy: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=900&q=80',
+  arabicCoffee: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=900&q=80',
+  shawarma: 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=900&q=80',
+  sajWrap: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=900&q=80',
+  mixedGrill: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=900&q=80',
+  hummus: 'https://images.unsplash.com/photo-1577805947697-89e18249d767?auto=format&fit=crop&w=900&q=80',
+  lemonade: 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?auto=format&fit=crop&w=900&q=80',
+  saudiCoffee: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=900&q=80',
+} as const;
+
+function image(key: keyof typeof TRIAL_IMAGES) {
+  return TRIAL_IMAGES[key];
 }
 
 function orderItem(item: MenuItem, quantity: number, note?: string) {
@@ -136,14 +152,14 @@ export function createTrialMockStore(): TrialMockStore {
   ];
 
   const products: Product[] = [
-    { id: 'prd-001', nameEn: 'Almarai Fresh Milk 1L', nameAr: 'حليب المراعي ١ لتر', barcode: '6281007001011', price: 7.5, costPrice: 5.2, category: Category.DAIRY, stock: 42, unit: 'bottle', expiryDate: '2026-07-04', selectiveTax: 'none', supplierId: 'sup-fresh', image: image('Fresh Milk', '#2563eb') },
-    { id: 'prd-002', nameEn: 'Tamees Bread Pack', nameAr: 'خبز تميس', barcode: '6281007001028', price: 3, costPrice: 1.4, category: Category.BAKERY, stock: 68, unit: 'pack', expiryDate: '2026-06-18', selectiveTax: 'none', supplierId: 'sup-bakery', image: image('Tamees', '#d97706') },
-    { id: 'prd-003', nameEn: 'Aquafina Water 600ml', nameAr: 'مياه أكوافينا ٦٠٠مل', barcode: '6281007001035', price: 1.5, costPrice: 0.65, category: Category.BEVERAGES, stock: 180, unit: 'bottle', expiryDate: '2027-01-30', selectiveTax: 'none', supplierId: 'sup-fresh', image: image('Water', '#0891b2') },
-    { id: 'prd-004', nameEn: 'Lays Chili Chips', nameAr: 'ليز فلفل حار', barcode: '6281007001042', price: 4.5, costPrice: 2.6, category: Category.SNACKS, stock: 54, unit: 'bag', expiryDate: '2026-10-12', selectiveTax: 'none', supplierId: 'sup-snacks', image: image('Chips', '#dc2626') },
-    { id: 'prd-005', nameEn: 'Banana 1kg', nameAr: 'موز ١ كجم', barcode: '6281007001059', price: 8.75, costPrice: 5.8, category: Category.PRODUCE, stock: 26, unit: 'kg', expiryDate: '2026-06-21', selectiveTax: 'none', supplierId: 'sup-fresh', image: image('Banana', '#eab308', '#1f2937') },
-    { id: 'prd-006', nameEn: 'Dish Soap Lemon 750ml', nameAr: 'صابون صحون ليمون', barcode: '6281007001066', price: 11.5, costPrice: 7.25, category: Category.HOUSEHOLD, stock: 33, unit: 'bottle', selectiveTax: 'none', supplierId: 'sup-household', image: image('Dish Soap', '#16a34a') },
-    { id: 'prd-007', nameEn: 'Energy Drink 250ml', nameAr: 'مشروب طاقة ٢٥٠مل', barcode: '6281007001073', price: 9, costPrice: 4.9, category: Category.BEVERAGES, stock: 22, unit: 'can', expiryDate: '2026-12-01', selectiveTax: 'energy', supplierId: 'sup-snacks', image: image('Energy', '#7c3aed') },
-    { id: 'prd-008', nameEn: 'Arabic Coffee 250g', nameAr: 'قهوة عربية ٢٥٠جم', barcode: '6281007001080', price: 24, costPrice: 15.5, category: Category.MISC, stock: 18, unit: 'bag', expiryDate: '2027-02-16', selectiveTax: 'none', supplierId: 'sup-snacks', image: image('Arabic Coffee', '#92400e') },
+    { id: 'prd-001', nameEn: 'Almarai Fresh Milk 1L', nameAr: 'حليب المراعي ١ لتر', barcode: '6281007001011', price: 7.5, costPrice: 5.2, category: Category.DAIRY, stock: 42, unit: 'bottle', expiryDate: '2026-07-04', selectiveTax: 'none', supplierId: 'sup-fresh', image: image('milk') },
+    { id: 'prd-002', nameEn: 'Tamees Bread Pack', nameAr: 'خبز تميس', barcode: '6281007001028', price: 3, costPrice: 1.4, category: Category.BAKERY, stock: 68, unit: 'pack', expiryDate: '2026-06-18', selectiveTax: 'none', supplierId: 'sup-bakery', image: image('bread') },
+    { id: 'prd-003', nameEn: 'Aquafina Water 600ml', nameAr: 'مياه أكوافينا ٦٠٠مل', barcode: '6281007001035', price: 1.5, costPrice: 0.65, category: Category.BEVERAGES, stock: 180, unit: 'bottle', expiryDate: '2027-01-30', selectiveTax: 'none', supplierId: 'sup-fresh', image: image('water') },
+    { id: 'prd-004', nameEn: 'Lays Chili Chips', nameAr: 'ليز فلفل حار', barcode: '6281007001042', price: 4.5, costPrice: 2.6, category: Category.SNACKS, stock: 54, unit: 'bag', expiryDate: '2026-10-12', selectiveTax: 'none', supplierId: 'sup-snacks', image: image('chips') },
+    { id: 'prd-005', nameEn: 'Banana 1kg', nameAr: 'موز ١ كجم', barcode: '6281007001059', price: 8.75, costPrice: 5.8, category: Category.PRODUCE, stock: 26, unit: 'kg', expiryDate: '2026-06-21', selectiveTax: 'none', supplierId: 'sup-fresh', image: image('banana') },
+    { id: 'prd-006', nameEn: 'Dish Soap Lemon 750ml', nameAr: 'صابون صحون ليمون', barcode: '6281007001066', price: 11.5, costPrice: 7.25, category: Category.HOUSEHOLD, stock: 33, unit: 'bottle', selectiveTax: 'none', supplierId: 'sup-household', image: image('soap') },
+    { id: 'prd-007', nameEn: 'Energy Drink 250ml', nameAr: 'مشروب طاقة ٢٥٠مل', barcode: '6281007001073', price: 9, costPrice: 4.9, category: Category.BEVERAGES, stock: 22, unit: 'can', expiryDate: '2026-12-01', selectiveTax: 'energy', supplierId: 'sup-snacks', image: image('energy') },
+    { id: 'prd-008', nameEn: 'Arabic Coffee 250g', nameAr: 'قهوة عربية ٢٥٠جم', barcode: '6281007001080', price: 24, costPrice: 15.5, category: Category.MISC, stock: 18, unit: 'bag', expiryDate: '2027-02-16', selectiveTax: 'none', supplierId: 'sup-snacks', image: image('arabicCoffee') },
   ];
 
   const menuCategories: MenuCategory[] = [
@@ -159,11 +175,11 @@ export function createTrialMockStore(): TrialMockStore {
   ];
 
   const menuItems: MenuItem[] = [
-    { id: 'menu-chicken-shawarma', branchIds: [branchId], hungerStationExternalId: 'HS-1001', hungerStationEnabled: true, nameEn: 'Chicken Shawarma', nameAr: 'شاورما دجاج', descriptionEn: 'Garlic, pickles, fries, and toasted saj.', descriptionAr: 'ثوم ومخلل وبطاطس في خبز صاج.', categoryId: 'cat-shawarma', basePrice: 16, vatPercentage: 15, active: true, station: 'grill', modifierGroupIds: ['mod-spice', 'mod-sides'], image: image('Chicken Shawarma', '#f97316'), images: [image('Chicken Shawarma', '#f97316'), image('Saj Wrap', '#fb923c')], nutrition: { caloriesKcal: 520, fatGrams: 18, saturatedFatGrams: 4, sugarGrams: 3, sodiumMilligrams: 1200, allergens: ['Gluten', 'Dairy', 'Sesame'] }, costPrice: 6.3, createdAt: now - 30 * day, updatedAt: now - day },
-    { id: 'menu-mixed-grill', branchIds: [branchId], hungerStationExternalId: 'HS-1002', hungerStationEnabled: true, nameEn: 'Mixed Grill Plate', nameAr: 'مشكل مشاوي', descriptionEn: 'Kebab, shish tawook, lamb kofta, rice, and salad.', descriptionAr: 'كباب وشيش طاووق وكفتة مع رز وسلطة.', categoryId: 'cat-grill', basePrice: 49, vatPercentage: 15, active: true, station: 'grill', modifierGroupIds: ['mod-spice'], image: image('Mixed Grill', '#b45309'), images: [image('Mixed Grill', '#b45309')], nutrition: { caloriesKcal: 980, fatGrams: 44, saturatedFatGrams: 13, sugarGrams: 6, sodiumMilligrams: 1680, allergens: ['Dairy'] }, costPrice: 22, createdAt: now - 25 * day, updatedAt: now - day },
-    { id: 'menu-hummus', branchIds: [branchId], nameEn: 'Hummus with Olive Oil', nameAr: 'حمص بزيت الزيتون', descriptionEn: 'Creamy chickpeas, tahini, lemon, and olive oil.', descriptionAr: 'حمص وطحينة وليمون وزيت زيتون.', categoryId: 'cat-appetizers', basePrice: 14, vatPercentage: 15, active: true, station: 'appetizers', modifierGroupIds: [], image: image('Hummus', '#ca8a04'), images: [image('Hummus', '#ca8a04')], nutrition: { caloriesKcal: 310, fatGrams: 16, saturatedFatGrams: 2, sugarGrams: 2, sodiumMilligrams: 540, allergens: ['Sesame'] }, costPrice: 4.2, createdAt: now - 20 * day, updatedAt: now - day },
-    { id: 'menu-mint-lemonade', branchIds: [branchId], hungerStationExternalId: 'HS-1003', hungerStationEnabled: true, nameEn: 'Mint Lemonade', nameAr: 'ليمون نعناع', descriptionEn: 'Fresh lemon, mint, ice, and light syrup.', descriptionAr: 'ليمون طازج ونعناع وثلج.', categoryId: 'cat-beverages', basePrice: 13, vatPercentage: 15, active: true, station: 'beverage', modifierGroupIds: [], image: image('Mint Lemonade', '#059669'), images: [image('Mint Lemonade', '#059669')], nutrition: { caloriesKcal: 140, fatGrams: 0, saturatedFatGrams: 0, sugarGrams: 28, sodiumMilligrams: 15, allergens: [] }, costPrice: 3.8, createdAt: now - 18 * day, updatedAt: now - day },
-    { id: 'menu-saudi-coffee', branchIds: [branchId], nameEn: 'Saudi Coffee', nameAr: 'قهوة سعودية', descriptionEn: 'Cardamom Saudi coffee with dates.', descriptionAr: 'قهوة سعودية بالهيل مع تمر.', categoryId: 'cat-beverages', basePrice: 18, vatPercentage: 15, active: true, station: 'beverage', modifierGroupIds: [], image: image('Saudi Coffee', '#854d0e'), images: [image('Saudi Coffee', '#854d0e')], nutrition: { caloriesKcal: 90, fatGrams: 0, saturatedFatGrams: 0, sugarGrams: 18, sodiumMilligrams: 5, caffeineMilligrams: 75, caffeineServingMl: 180, allergens: [] }, costPrice: 5, createdAt: now - 18 * day, updatedAt: now - day },
+    { id: 'menu-chicken-shawarma', branchIds: [branchId], hungerStationExternalId: 'HS-1001', hungerStationEnabled: true, nameEn: 'Chicken Shawarma', nameAr: 'شاورما دجاج', descriptionEn: 'Garlic, pickles, fries, and toasted saj.', descriptionAr: 'ثوم ومخلل وبطاطس في خبز صاج.', categoryId: 'cat-shawarma', basePrice: 16, vatPercentage: 15, active: true, station: 'grill', modifierGroupIds: ['mod-spice', 'mod-sides'], image: image('shawarma'), images: [image('shawarma'), image('sajWrap')], nutrition: { caloriesKcal: 520, fatGrams: 18, saturatedFatGrams: 4, sugarGrams: 3, sodiumMilligrams: 1200, allergens: ['Gluten', 'Dairy', 'Sesame'] }, costPrice: 6.3, createdAt: now - 30 * day, updatedAt: now - day },
+    { id: 'menu-mixed-grill', branchIds: [branchId], hungerStationExternalId: 'HS-1002', hungerStationEnabled: true, nameEn: 'Mixed Grill Plate', nameAr: 'مشكل مشاوي', descriptionEn: 'Kebab, shish tawook, lamb kofta, rice, and salad.', descriptionAr: 'كباب وشيش طاووق وكفتة مع رز وسلطة.', categoryId: 'cat-grill', basePrice: 49, vatPercentage: 15, active: true, station: 'grill', modifierGroupIds: ['mod-spice'], image: image('mixedGrill'), images: [image('mixedGrill')], nutrition: { caloriesKcal: 980, fatGrams: 44, saturatedFatGrams: 13, sugarGrams: 6, sodiumMilligrams: 1680, allergens: ['Dairy'] }, costPrice: 22, createdAt: now - 25 * day, updatedAt: now - day },
+    { id: 'menu-hummus', branchIds: [branchId], nameEn: 'Hummus with Olive Oil', nameAr: 'حمص بزيت الزيتون', descriptionEn: 'Creamy chickpeas, tahini, lemon, and olive oil.', descriptionAr: 'حمص وطحينة وليمون وزيت زيتون.', categoryId: 'cat-appetizers', basePrice: 14, vatPercentage: 15, active: true, station: 'appetizers', modifierGroupIds: [], image: image('hummus'), images: [image('hummus')], nutrition: { caloriesKcal: 310, fatGrams: 16, saturatedFatGrams: 2, sugarGrams: 2, sodiumMilligrams: 540, allergens: ['Sesame'] }, costPrice: 4.2, createdAt: now - 20 * day, updatedAt: now - day },
+    { id: 'menu-mint-lemonade', branchIds: [branchId], hungerStationExternalId: 'HS-1003', hungerStationEnabled: true, nameEn: 'Mint Lemonade', nameAr: 'ليمون نعناع', descriptionEn: 'Fresh lemon, mint, ice, and light syrup.', descriptionAr: 'ليمون طازج ونعناع وثلج.', categoryId: 'cat-beverages', basePrice: 13, vatPercentage: 15, active: true, station: 'beverage', modifierGroupIds: [], image: image('lemonade'), images: [image('lemonade')], nutrition: { caloriesKcal: 140, fatGrams: 0, saturatedFatGrams: 0, sugarGrams: 28, sodiumMilligrams: 15, allergens: [] }, costPrice: 3.8, createdAt: now - 18 * day, updatedAt: now - day },
+    { id: 'menu-saudi-coffee', branchIds: [branchId], nameEn: 'Saudi Coffee', nameAr: 'قهوة سعودية', descriptionEn: 'Cardamom Saudi coffee with dates.', descriptionAr: 'قهوة سعودية بالهيل مع تمر.', categoryId: 'cat-beverages', basePrice: 18, vatPercentage: 15, active: true, station: 'beverage', modifierGroupIds: [], image: image('saudiCoffee'), images: [image('saudiCoffee')], nutrition: { caloriesKcal: 90, fatGrams: 0, saturatedFatGrams: 0, sugarGrams: 18, sodiumMilligrams: 5, caffeineMilligrams: 75, caffeineServingMl: 180, allergens: [] }, costPrice: 5, createdAt: now - 18 * day, updatedAt: now - day },
   ];
 
   const diningAreas: DiningArea[] = [
@@ -325,7 +341,7 @@ export function createTrialMockStore(): TrialMockStore {
     branches,
     activeBranchId: branchId,
     branchStaffAssignments,
-    cloudStorageConfig: { enabled: false, mode: 'cloud_only', cloudflareTunnelUrl: '', lanApiUrl: 'offline-trial', apiToken: '', deviceId: 'trial-browser-device', syncIntervalMinutes: 0, status: 'not_configured', lastError: 'Trial mode uses offline mock data.' },
+    cloudStorageConfig: { enabled: false, mode: 'cloud_only', cloudflareTunnelUrl: '', lanApiUrl: 'http://localhost:8787', apiToken: '', deviceId: 'trial-browser-device', syncIntervalMinutes: 0, status: 'not_configured', lastError: 'Trial mode uses offline mock data.' },
     cloudSyncStatus: { online: false, sourceOfTruth: 'mac_mini_cloud', queued: 1, synced: 42, failed: 0, lastSyncAt: now - 6 * 3600000, serverVersion: 'trial-offline' },
     guestTabs,
     reservations: [
