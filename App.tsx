@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { BarChart3, Building2, ChefHat, DownloadCloud, FileText, LayoutDashboard, LogOut, MapPin, Menu, Monitor, Package, Settings as SettingsIcon, ShoppingCart, Trash2, TrendingUp, Truck, Users, X, type LucideIcon } from 'lucide-react';
+import { BarChart3, Building2, ChefHat, DownloadCloud, FileText, LayoutDashboard, LogOut, MapPin, Menu, Monitor, Package, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon, ShoppingCart, Trash2, TrendingUp, Truck, Users, X, type LucideIcon } from 'lucide-react';
 import RestaurantPOS from './components/RestaurantPOS';
 import Dashboard from './components/Dashboard';
 import Inventory from './components/Inventory';
@@ -65,6 +65,7 @@ function StaffApp({ standaloneView }: { standaloneView: string | null }) {
   const [currentUser, setCurrentUser] = useState<User | null>(StorageService.getCurrentUser());
   const [dataVersion, setDataVersion] = useState(0);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showDeveloperConsole, setShowDeveloperConsole] = useState(false);
   const sidebarRef = useRef<HTMLElement | null>(null);
   const sidebarScrollTopRef = useRef(0);
@@ -357,6 +358,7 @@ function StaffApp({ standaloneView }: { standaloneView: string | null }) {
 
   const NavButton = ({ target, icon: Icon, label, shortcut }: { target: View, icon: LucideIcon, label: string, shortcut?: string }) => {
     const active = view === target;
+    const compact = sidebarCollapsed && !mobileSidebarOpen;
     const isPrimary = target === 'dashboard' || target === 'pos' || target === 'tables' || target === 'kds' || target === 'tabs';
     const badge = target === 'pos'
       ? activeOrderCount
@@ -368,10 +370,11 @@ function StaffApp({ standaloneView }: { standaloneView: string | null }) {
     return (
       <button
         type="button"
+        aria-label={label}
         onMouseDown={event => event.preventDefault()}
         onClick={() => handleViewChange(target)}
         title={shortcut ? `${label} (${shortcut})` : label}
-        className={`flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left transition-all duration-200 ease-out active:scale-[0.97] ${
+        className={`relative flex h-11 w-full items-center gap-3 overflow-hidden rounded-xl px-3 text-left transition-all duration-200 ease-out active:scale-[0.97] ${compact ? 'justify-center px-0' : ''} ${
           active
             ? isPrimary
               ? 'bg-[#007AFF] text-white shadow-[0_10px_26px_rgba(0,122,255,0.18)]'
@@ -388,7 +391,7 @@ function StaffApp({ standaloneView }: { standaloneView: string | null }) {
         }`}>
           <Icon size={18} strokeWidth={active ? 2.25 : 2} />
         </span>
-        <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+        <span className={`ios-sidebar-text flex min-w-0 flex-1 items-center justify-between gap-2 ${compact ? 'ios-sidebar-text-collapsed' : ''}`}>
           <span className="min-w-0 truncate text-sm font-semibold tracking-tight">{label}</span>
           {badge !== undefined && badge > 0 && (
             <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
@@ -409,6 +412,9 @@ function StaffApp({ standaloneView }: { standaloneView: string | null }) {
             </span>
           )}
         </span>
+        {compact && badge !== undefined && badge > 0 && (
+          <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[#FF3B30] ring-2 ring-white" />
+        )}
       </button>
     );
   };
@@ -465,13 +471,13 @@ function StaffApp({ standaloneView }: { standaloneView: string | null }) {
       )}
       {/* Sidebar Navigation */}
       <nav
-          className={`ios-sidebar-shell ${mobileSidebarOpen ? 'ios-sidebar-shell-open' : ''} relative z-30 flex h-full max-h-full w-[280px] flex-shrink-0 flex-col overflow-hidden border-r border-slate-200/80 bg-white shadow-[4px_0_24px_rgba(0,0,0,0.02)]`}
+          className={`ios-sidebar-shell ${sidebarCollapsed ? 'ios-sidebar-collapsed' : ''} ${mobileSidebarOpen ? 'ios-sidebar-shell-open' : ''} relative z-30 flex h-full max-h-full w-[280px] flex-shrink-0 flex-col overflow-hidden border-r border-slate-200/80 bg-white shadow-[4px_0_24px_rgba(0,0,0,0.02)]`}
       >
-        <div className="flex-shrink-0 px-6 py-5">
+        <div className="flex-shrink-0 px-4 py-5">
           <div className="flex items-start gap-3">
             <img src={APP_LOGO_DATA_URL} alt="Oasis Dine RMS" className="mt-0.5 h-9 w-9 object-contain" />
-            <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+            <div className={`ios-sidebar-text min-w-0 flex-1 ${sidebarCollapsed && !mobileSidebarOpen ? 'ios-sidebar-text-collapsed' : ''}`}>
+              <div className="flex items-center gap-2">
                 <h1
                   onClick={handleBrandTap}
                   onDoubleClick={openDeveloperConsole}
@@ -487,6 +493,15 @@ function StaffApp({ standaloneView }: { standaloneView: string | null }) {
                 <span className="truncate text-[11px] font-bold text-slate-400">{databaseLabel} database</span>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setSidebarCollapsed(value => !value)}
+              className="ios-sidebar-collapse-toggle ml-auto flex h-9 min-h-0 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition-all duration-200 hover:bg-blue-50 hover:text-blue-600"
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Minimize sidebar'}
+              title={sidebarCollapsed ? 'Expand sidebar' : 'Minimize sidebar'}
+            >
+              {sidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+            </button>
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(false)}
@@ -505,7 +520,7 @@ function StaffApp({ standaloneView }: { standaloneView: string | null }) {
         >
           {navigationSections.map(section => (
             <div key={section.title}>
-              <p className="mb-2 mt-4 block text-[11px] font-bold uppercase tracking-wider text-slate-400">{section.title}</p>
+              <p className={`ios-sidebar-text mb-2 mt-4 block text-[11px] font-bold uppercase tracking-wider text-slate-400 ${sidebarCollapsed && !mobileSidebarOpen ? 'ios-sidebar-text-collapsed' : ''}`}>{section.title}</p>
               <div className="space-y-1.5">
                 {section.items.map(item => (
                   <React.Fragment key={item.target}>
@@ -518,16 +533,19 @@ function StaffApp({ standaloneView }: { standaloneView: string | null }) {
         </div>
 
         <div className="mt-auto flex-shrink-0 border-t border-slate-100 bg-slate-50/50 p-4">
-          <div className="rounded-2xl bg-white p-3 shadow-[0_4px_24px_rgba(0,0,0,0.03)]">
+          <div className={`rounded-2xl bg-white p-3 shadow-[0_4px_24px_rgba(0,0,0,0.03)] ${sidebarCollapsed && !mobileSidebarOpen ? 'ios-sidebar-footer-compact' : ''}`}>
             <div className="mb-3 rounded-xl bg-slate-50 px-3 py-2">
-              <p className="truncate text-xs font-black uppercase tracking-wider text-slate-400">Active branch</p>
-              <p className="mt-0.5 truncate text-sm font-black tracking-tight text-slate-900">{activeBranch?.nameEn || 'Select Branch'}</p>
+              <p className={`ios-sidebar-text truncate text-xs font-black uppercase tracking-wider text-slate-400 ${sidebarCollapsed && !mobileSidebarOpen ? 'ios-sidebar-text-collapsed' : ''}`}>Active branch</p>
+              <p className={`ios-sidebar-text mt-0.5 truncate text-sm font-black tracking-tight text-slate-900 ${sidebarCollapsed && !mobileSidebarOpen ? 'ios-sidebar-text-collapsed' : ''}`}>{activeBranch?.nameEn || 'Select Branch'}</p>
+              {sidebarCollapsed && !mobileSidebarOpen && (
+                <Building2 size={18} className="mx-auto text-blue-600" />
+              )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className={`flex items-center gap-3 ${sidebarCollapsed && !mobileSidebarOpen ? 'flex-col' : ''}`}>
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-sm font-black text-blue-600">
                 {currentUser.name.charAt(0).toUpperCase()}
               </div>
-              <div className="min-w-0 flex-1">
+              <div className={`ios-sidebar-text min-w-0 flex-1 ${sidebarCollapsed && !mobileSidebarOpen ? 'ios-sidebar-text-collapsed' : ''}`}>
                 <p className="truncate text-sm font-black tracking-tight text-slate-900" title={currentUser.name}>{currentUser.name}</p>
                 <p className="truncate text-xs font-semibold capitalize text-slate-500">{currentUser.role}</p>
               </div>
