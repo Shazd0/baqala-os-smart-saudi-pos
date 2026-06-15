@@ -68,6 +68,10 @@ function kitchenTicketsForQrOrder(order: RestaurantOrder): KitchenTicket[] {
   }));
 }
 
+function matchesTableIdentifier(table: DiningTable, identifier: string) {
+  return table.id === identifier || table.label === identifier;
+}
+
 const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
   const { toast } = useToast();
   const [tables, setTables] = useState<DiningTable[]>(() => StorageService.getTables());
@@ -79,7 +83,7 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
   const [cloudLoading, setCloudLoading] = useState(true);
   const [cloudError, setCloudError] = useState('');
   const [remoteSource, setRemoteSource] = useState<'cloud' | 'firestore' | 'local'>('local');
-  const table = cloudTable || tables.find(item => item.id === tableId);
+  const table = cloudTable || tables.find(item => matchesTableIdentifier(item, tableId));
   const branchId = table?.branchId || StorageService.getActiveBranchId();
   const branch = cloudBranch || StorageService.getBranches().find(item => item.id === branchId);
   const categories = cloudCategories.length ? cloudCategories : StorageService.getMenuCategories();
@@ -124,7 +128,7 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
               FirebaseService.list<MenuCategory>('menuCategories'),
               FirebaseService.list<MenuItem>('menuItems'),
             ]);
-            const remoteTable = remoteTables.find(item => item.id === tableId);
+            const remoteTable = remoteTables.find(item => matchesTableIdentifier(item, tableId));
             if (remoteTable) {
               const remoteBranch = remoteBranches.find(item => item.id === remoteTable.branchId) || null;
               setCloudTable(remoteTable);
