@@ -92,7 +92,11 @@ function App() {
   const lowStockCount = products.filter(product => Number(product.stock || 0) <= 5).length;
   const zatcaState = StorageService.getZatcaState();
   const zatcaReady = zatcaState.onboardingStatus === 'production_ready';
-  const databaseLabel = StorageService.isFirebaseConfigured() ? 'Firebase' : 'Firebase required';
+  const databaseLabel = StorageService.isTrialMode()
+    ? 'Trial mock data'
+    : StorageService.isFirebaseConfigured()
+      ? 'Firebase'
+      : 'Firebase required';
 
   useEffect(() => {
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
@@ -218,6 +222,12 @@ function App() {
 
   const completeSetup = () => {
     setSetupComplete(true);
+    refreshData();
+  };
+
+  const handleActivated = () => {
+    setActivated(true);
+    setSetupComplete(StorageService.isSetupComplete());
     refreshData();
   };
 
@@ -403,7 +413,7 @@ function App() {
   if (!activated) {
     return (
       <ToastProvider>
-        <Activation onActivated={() => setActivated(true)} />
+        <Activation onActivated={handleActivated} />
       </ToastProvider>
     );
   }

@@ -13,6 +13,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [shake, setShake] = useState(false);
+  const trialMode = StorageService.isTrialMode();
 
   const triggerError = (message: string) => {
     setError(message);
@@ -32,7 +33,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     try {
       const normalizedUsername = username.trim();
       const secret = password.trim();
-      if (!normalizedUsername || /^\d{4,6}$/.test(secret)) {
+      if (trialMode) {
+        StorageService.login(normalizedUsername || 'admin', '');
+      } else if (!normalizedUsername || /^\d{4,6}$/.test(secret)) {
         StorageService.loginWithQuickPin(secret);
       } else {
         StorageService.login(normalizedUsername, secret);
@@ -69,10 +72,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <span className="rounded-full bg-[#E9E9EB] px-3 py-1 text-[11px] font-black uppercase tracking-widest text-[#1C1C1E]">RMS</span>
             </div>
             <p className="mt-4 max-w-sm text-base font-semibold leading-relaxed text-[#8E8E93]">
-              Premium Saudi restaurant operations for POS, KDS, QR ordering, ZATCA, inventory, and staff compliance.
+              {trialMode
+                ? 'Trial mode runs completely offline with realistic restaurant, POS, inventory, and delivery data.'
+                : 'Premium Saudi restaurant operations for POS, KDS, QR ordering, ZATCA, inventory, and staff compliance.'}
             </p>
             <div className="mt-8 grid gap-3">
-              {['Firestore-only data', 'Touch terminal optimized', 'Secure shift access'].map(item => (
+              {(trialMode ? ['Offline trial data', 'Touch terminal optimized', 'Password-free demo'] : ['Firestore-only data', 'Touch terminal optimized', 'Secure shift access']).map(item => (
                 <div key={item} className="flex items-center gap-3 rounded-2xl bg-[#F5F5F7] px-4 py-3 text-sm font-bold text-[#1C1C1E]">
                   <Sparkles size={16} className="text-[#007AFF]" />
                   {item}
@@ -81,7 +86,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-2xl bg-[#F5F5F7] p-4 text-sm font-bold text-[#8E8E93]">
-            <ShieldCheck size={18} className="text-[#34C759]" /> Login required every time the app opens.
+            <ShieldCheck size={18} className="text-[#34C759]" /> {trialMode ? 'No Firebase or password is required for trial mode.' : 'Login required every time the app opens.'}
           </div>
         </div>
 
@@ -95,7 +100,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <span className="rounded-full bg-[#E9E9EB] px-2.5 py-1 text-[10px] font-black text-[#1C1C1E]">RMS</span>
             </div>
             <p className="mt-2 max-w-md text-sm font-semibold leading-relaxed text-[#8E8E93]">
-              Please enter your credentials or quick access PIN to open the shift.
+              {trialMode ? 'Open the full offline trial workspace. No password or Firebase connection is required.' : 'Please enter your credentials or quick access PIN to open the shift.'}
             </p>
           </div>
 
@@ -111,53 +116,61 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             autoFocus
             value={username}
             onChange={event => setUsername(event.target.value)}
-            disabled={loading}
-            placeholder="admin, cashier username, or leave blank for PIN"
+            disabled={loading || trialMode}
+            placeholder={trialMode ? 'admin trial user' : 'admin, cashier username, or leave blank for PIN'}
             className="mb-5 min-h-[48px] w-full rounded-[14px] border-[1.5px] border-transparent bg-[#E9E9EB] px-4 text-base font-bold text-[#1C1C1E] outline-none transition-all duration-200 ease-out placeholder:text-[#A9A9A9] focus:border-[#007AFF] focus:bg-white focus:shadow-[0_0_0_4px_rgba(0,122,255,0.08)] active:scale-[0.99] disabled:opacity-60"
           />
 
-          <div className="mb-2 flex items-center justify-between">
-            <label className="block text-sm font-black tracking-tight text-[#1C1C1E]">Password / PIN</label>
-            <button type="button" disabled={loading} onClick={() => setShowPassword(value => !value)} className="rounded-full bg-[rgba(0,122,255,0.10)] px-4 py-2 text-xs font-black text-[#007AFF] transition-all duration-200 ease-out active:scale-95 disabled:opacity-50">
-              {showPassword ? 'Hide' : 'Show'}
-            </button>
-          </div>
-          <input
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={event => setPassword(event.target.value)}
-            disabled={loading}
-            placeholder="Enter password or quick PIN"
-            className="min-h-[48px] w-full rounded-[14px] border-[1.5px] border-transparent bg-[#E9E9EB] px-4 font-mono text-base font-bold text-[#1C1C1E] outline-none transition-all duration-200 ease-out placeholder:text-[#A9A9A9] focus:border-[#007AFF] focus:bg-white focus:shadow-[0_0_0_4px_rgba(0,122,255,0.08)] active:scale-[0.99] disabled:opacity-60"
-          />
-
-          <div className="mt-6 rounded-[24px] bg-[#F5F5F7] p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs font-black uppercase tracking-widest text-[#8E8E93]">Quick Access PIN</p>
-              <button type="button" disabled={loading} onClick={clearPin} className="rounded-full px-3 py-1 text-xs font-black text-[#FF3B30] transition-all duration-200 ease-out active:scale-95 disabled:opacity-50">Clear</button>
+          {trialMode ? (
+            <div className="rounded-[24px] bg-[rgba(0,122,255,0.08)] p-4 text-sm font-bold leading-relaxed text-[#007AFF]">
+              Trial mode will sign in as the administrator and load complete mock data for every tab, including product/menu images, tables, KDS, inventory, purchases, staff, customers, reports, and delivery orders.
             </div>
-            <div className="grid grid-cols-3 justify-items-center gap-3">
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map(digit => (
-                <button
-                  key={digit}
-                  type="button"
-                  disabled={loading}
-                  onClick={() => addPinDigit(digit)}
-                  className="flex h-14 w-14 items-center justify-center rounded-full bg-[#E9E9EB] text-xl font-black text-[#1C1C1E] shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition-all duration-200 ease-out hover:brightness-95 active:scale-[0.96] disabled:opacity-50 sm:h-16 sm:w-16"
-                >
-                  {digit}
+          ) : (
+            <>
+              <div className="mb-2 flex items-center justify-between">
+                <label className="block text-sm font-black tracking-tight text-[#1C1C1E]">Password / PIN</label>
+                <button type="button" disabled={loading} onClick={() => setShowPassword(value => !value)} className="rounded-full bg-[rgba(0,122,255,0.10)] px-4 py-2 text-xs font-black text-[#007AFF] transition-all duration-200 ease-out active:scale-95 disabled:opacity-50">
+                  {showPassword ? 'Hide' : 'Show'}
                 </button>
-              ))}
-              <button
-                type="button"
+              </div>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={event => setPassword(event.target.value)}
                 disabled={loading}
-                onClick={() => setPassword(current => current.slice(0, -1))}
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FFECEA] text-sm font-black text-[#FF3B30] transition-all duration-200 ease-out hover:brightness-95 active:scale-[0.96] disabled:opacity-50 sm:h-16 sm:w-16"
-              >
-                DEL
-              </button>
-            </div>
-          </div>
+                placeholder="Enter password or quick PIN"
+                className="min-h-[48px] w-full rounded-[14px] border-[1.5px] border-transparent bg-[#E9E9EB] px-4 font-mono text-base font-bold text-[#1C1C1E] outline-none transition-all duration-200 ease-out placeholder:text-[#A9A9A9] focus:border-[#007AFF] focus:bg-white focus:shadow-[0_0_0_4px_rgba(0,122,255,0.08)] active:scale-[0.99] disabled:opacity-60"
+              />
+
+              <div className="mt-6 rounded-[24px] bg-[#F5F5F7] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-xs font-black uppercase tracking-widest text-[#8E8E93]">Quick Access PIN</p>
+                  <button type="button" disabled={loading} onClick={clearPin} className="rounded-full px-3 py-1 text-xs font-black text-[#FF3B30] transition-all duration-200 ease-out active:scale-95 disabled:opacity-50">Clear</button>
+                </div>
+                <div className="grid grid-cols-3 justify-items-center gap-3">
+                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map(digit => (
+                    <button
+                      key={digit}
+                      type="button"
+                      disabled={loading}
+                      onClick={() => addPinDigit(digit)}
+                      className="flex h-14 w-14 items-center justify-center rounded-full bg-[#E9E9EB] text-xl font-black text-[#1C1C1E] shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition-all duration-200 ease-out hover:brightness-95 active:scale-[0.96] disabled:opacity-50 sm:h-16 sm:w-16"
+                    >
+                      {digit}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => setPassword(current => current.slice(0, -1))}
+                    className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FFECEA] text-sm font-black text-[#FF3B30] transition-all duration-200 ease-out hover:brightness-95 active:scale-[0.96] disabled:opacity-50 sm:h-16 sm:w-16"
+                  >
+                    DEL
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
 
           <button
             disabled={loading}
@@ -165,11 +178,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             className="mt-8 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#007AFF] px-6 text-sm font-black tracking-tight text-white shadow-[0_14px_34px_rgba(0,122,255,0.24)] transition-all duration-200 ease-out hover:brightness-95 active:scale-[0.96] disabled:opacity-70"
           >
             {loading && <span className="ios-spinner" />}
-            <span>{loading ? 'Connecting...' : 'Unlock POS'}</span>
+            <span>{loading ? (trialMode ? 'Loading trial...' : 'Connecting...') : (trialMode ? 'Enter Trial Demo' : 'Unlock POS')}</span>
             {!loading && <ArrowRight size={17} />}
           </button>
           <p className="mt-5 text-center text-xs font-semibold text-[#8E8E93]">
-            Firebase-backed access for cashier terminals and restaurant administrators.
+            {trialMode ? 'Offline mock workspace. No Firebase reads or writes are used.' : 'Firebase-backed access for cashier terminals and restaurant administrators.'}
           </p>
         </form>
       </div>

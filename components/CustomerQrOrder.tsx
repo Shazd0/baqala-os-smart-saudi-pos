@@ -116,7 +116,7 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
       })
       .catch(async error => {
         if (!active) return;
-        if (FirebaseService.isConfigured()) {
+        if (StorageService.isFirebaseConfigured()) {
           try {
             const [remoteTables, remoteBranches, remoteCategories, remoteItems] = await Promise.all([
               FirebaseService.list<DiningTable>('tables'),
@@ -292,7 +292,7 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
         updatedAt: Date.now(),
         note: [`Guest: ${guestName.trim()}`, `Mobile: ${guestPhone.trim()}`, note.trim()].filter(Boolean).join(' / '),
       };
-      if (remoteSource === 'firestore' && FirebaseService.isConfigured()) {
+      if (remoteSource === 'firestore' && StorageService.isFirebaseConfigured()) {
         const saved: RestaurantOrder = {
           ...order,
           orderNumber: `OD-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Date.now()).slice(-4)}`,

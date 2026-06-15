@@ -50,6 +50,8 @@ import {
 } from '../types';
 import { INITIAL_STORE_CONFIG } from '../constants';
 import { FirebaseService, type FirestoreCollection } from './firebaseService';
+import { getActivation } from './licenseService';
+import { createTrialMockStore } from './trialMockData';
 
 const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   administrator: ['sell', 'refund', 'discount', 'manage_inventory', 'manage_customers', 'manage_expenses', 'manage_settings', 'manage_users', 'close_shift', 'backup_restore', 'zatca_admin'],
@@ -187,6 +189,15 @@ const FIREBASE_BACKED_COMMANDS = new Set([
 ]);
 
 const now = () => Date.now();
+let trialMockSeeded = false;
+
+function isTrialMode() {
+  return getActivation()?.plan === 'trial';
+}
+
+function shouldUseFirebase() {
+  return FirebaseService.isConfigured() && !isTrialMode();
+}
 
 const DEFAULT_MENU_CATEGORIES: MenuCategory[] = [
   { id: 'cat-shawarma', nameEn: 'Shawarma', nameAr: 'شاورما', sortOrder: 1, active: true },
@@ -436,17 +447,17 @@ const defaultPreviewStore = {
 
 const previewStore = (() => {
   const parsed = { ...defaultPreviewStore };
-  if (FirebaseService.isConfigured()) {
+  if (shouldUseFirebase()) {
     FIREBASE_BACKED_KEYS.forEach(key => {
       (parsed as any)[key] = [];
     });
   }
   parsed.hardware = { ...defaultPreviewStore.hardware, ...(parsed.hardware || {}) };
-  parsed.menuCategories = parsed.menuCategories?.length ? parsed.menuCategories : (FirebaseService.isConfigured() ? [] : DEFAULT_MENU_CATEGORIES);
-  parsed.modifierGroups = parsed.modifierGroups?.length ? parsed.modifierGroups : (FirebaseService.isConfigured() ? [] : DEFAULT_MODIFIER_GROUPS);
-  parsed.menuItems = parsed.menuItems?.length ? parsed.menuItems : (FirebaseService.isConfigured() ? [] : DEFAULT_MENU_ITEMS);
-  parsed.diningAreas = parsed.diningAreas?.length ? parsed.diningAreas : (FirebaseService.isConfigured() ? [] : DEFAULT_DINING_AREAS);
-  parsed.tables = parsed.tables?.length ? parsed.tables : (FirebaseService.isConfigured() ? [] : DEFAULT_TABLES);
+  parsed.menuCategories = parsed.menuCategories?.length ? parsed.menuCategories : (shouldUseFirebase() ? [] : DEFAULT_MENU_CATEGORIES);
+  parsed.modifierGroups = parsed.modifierGroups?.length ? parsed.modifierGroups : (shouldUseFirebase() ? [] : DEFAULT_MODIFIER_GROUPS);
+  parsed.menuItems = parsed.menuItems?.length ? parsed.menuItems : (shouldUseFirebase() ? [] : DEFAULT_MENU_ITEMS);
+  parsed.diningAreas = parsed.diningAreas?.length ? parsed.diningAreas : (shouldUseFirebase() ? [] : DEFAULT_DINING_AREAS);
+  parsed.tables = parsed.tables?.length ? parsed.tables : (shouldUseFirebase() ? [] : DEFAULT_TABLES);
   parsed.restaurantGroups = parsed.restaurantGroups?.length ? parsed.restaurantGroups : [DEFAULT_RESTAURANT_GROUP];
   parsed.branches = parsed.branches?.length ? parsed.branches : DEFAULT_BRANCHES;
   parsed.activeBranchId = parsed.activeBranchId || parsed.branches[0]?.id || DEFAULT_BRANCHES[0].id;
@@ -457,6 +468,12 @@ const previewStore = (() => {
 
 let currentUser: User | null = null;
 
+function ensureTrialMockStore() {
+  if (!isTrialMode() || trialMockSeeded) return;
+  Object.assign(previewStore, createTrialMockStore());
+  trialMockSeeded = true;
+}
+
 type StoredPreviewUser = User & {
   passwordHash?: string;
   pinHash?: string;
@@ -465,7 +482,8 @@ type StoredPreviewUser = User & {
 };
 
 function persistPreviewStore() {
-  if (!FirebaseService.isConfigured()) {
+  if (isTrialMode()) return;
+  if (!shouldUseFirebase()) {
     throw new Error('Firebase is required. Local browser storage is disabled for production.');
   }
   const writes: Promise<void>[] = [];
@@ -494,6 +512,7 @@ function persistPreviewStore() {
 }
 
 function bridge<T>(command: string, payload: Record<string, unknown> = {}): T | null {
+  ensureTrialMockStore();
   void command;
   void payload;
   return null;
@@ -632,14 +651,14 @@ function emitKitchenTicketsChanged() {
 }
 
 function mirrorToFirestore<T extends { id: string }>(collectionName: FirestoreCollection, value: T) {
-  if (!FirebaseService.isConfigured()) return;
+  if (!shouldUseFirebase()) return;
   void FirebaseService.save(collectionName, value).catch(error => {
     console.warn(`Firestore sync failed for ${collectionName}/${value.id}`, error);
   });
 }
 
 function deleteFromFirestore(collectionName: FirestoreCollection, id: string) {
-  if (!FirebaseService.isConfigured()) return;
+  if (!shouldUseFirebase()) return;
   void FirebaseService.delete(collectionName, id).catch(error => {
     console.warn(`Firestore delete failed for ${collectionName}/${id}`, error);
   });
@@ -648,10 +667,13 @@ function deleteFromFirestore(collectionName: FirestoreCollection, id: string) {
 export const StorageService = {
   isDesktopRuntime: () => false,
 
-  isFirebaseConfigured: () => FirebaseService.isConfigured(),
+  isTrialMode,
+
+  isFirebaseConfigured: () => shouldUseFirebase(),
 
   syncFirebaseData: async (): Promise<boolean> => {
-    if (!FirebaseService.isConfigured()) return false;
+    ensureTrialMockStore();
+    if (!shouldUseFirebase()) return false;
     const entries = await Promise.all(
       Object.entries(FIRESTORE_COLLECTION_BY_KEY).map(async ([key, collectionName]) => {
         const data = await FirebaseService.list<any>(collectionName);
@@ -694,7 +716,7 @@ export const StorageService = {
   createInitialSetup: (payload: InitialSetupPayload) => {
     const result = bridge<{ ok: boolean }>('createInitialSetup', payload as unknown as Record<string, unknown>);
     if (!result) {
-      if (!FirebaseService.isConfigured()) {
+      if (!shouldUseFirebase()) {
         throw new Error('Firebase is required before setup. Local setup storage is disabled.');
       }
       const config = payload.config;
@@ -735,6 +757,12 @@ export const StorageService = {
       currentUser = user;
       return user;
     }
+    if (isTrialMode()) {
+      const trialAdmin = (previewStore.users as StoredPreviewUser[]).find(item => item.role === 'administrator' && item.active);
+      if (!trialAdmin) throw new Error('Trial administrator is not available.');
+      currentUser = safeUser(trialAdmin);
+      return currentUser;
+    }
     const previewUser = (previewStore.users as StoredPreviewUser[]).find(item =>
       item.active && item.username.toLowerCase() === username.trim().toLowerCase() && item.passwordHash === password
     );
@@ -744,6 +772,13 @@ export const StorageService = {
   },
 
   loginWithQuickPin: (pin: string): User => {
+    ensureTrialMockStore();
+    if (isTrialMode()) {
+      const trialAdmin = (previewStore.users as StoredPreviewUser[]).find(item => item.role === 'administrator' && item.active);
+      if (!trialAdmin) throw new Error('Trial administrator is not available.');
+      currentUser = safeUser(trialAdmin);
+      return currentUser;
+    }
     const quickPin = sanitizedPin(pin);
     if (!/^\d{4,6}$/.test(quickPin)) throw new Error('Quick Access PIN must be 4 to 6 digits.');
     const user = bridge<User>('loginWithQuickPin', { quickPin });
@@ -1315,7 +1350,7 @@ export const StorageService = {
   },
 
   syncTablesFromFirestore: async (): Promise<DiningTable[] | null> => {
-    if (!FirebaseService.isConfigured()) return null;
+    if (!shouldUseFirebase()) return null;
     const remoteTables = await FirebaseService.list<DiningTable>('tables');
     if (!remoteTables.length) return null;
     previewStore.tables = remoteTables;

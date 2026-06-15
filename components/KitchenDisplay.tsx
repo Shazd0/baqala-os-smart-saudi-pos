@@ -45,7 +45,7 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({ lang }) => {
   const activeBranchId = StorageService.getActiveBranchId();
 
   const refreshTickets = () => {
-    if (FirebaseService.isConfigured()) return;
+    if (StorageService.isFirebaseConfigured()) return;
     if (CloudClient.isConfigured()) {
       void CloudClient.list<KitchenTicket>('/kds')
         .then(cloudTickets => setTickets(cloudTickets))
@@ -56,7 +56,7 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({ lang }) => {
   };
 
   useEffect(() => {
-    if (FirebaseService.isConfigured()) {
+    if (StorageService.isFirebaseConfigured()) {
       return FirebaseService.subscribe<KitchenTicket>('kitchenTickets', setTickets, 'firedAt');
     }
     refreshTickets();
@@ -95,7 +95,7 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({ lang }) => {
     if (CloudClient.isConfigured()) {
       void CloudClient.save<KitchenTicket>('/kds', updatedTicket);
     }
-    if (FirebaseService.isConfigured()) {
+    if (StorageService.isFirebaseConfigured()) {
       void FirebaseService.save('kitchenTickets', updatedTicket);
     }
     StorageService.saveKitchenTicket(updatedTicket);

@@ -15,6 +15,28 @@ For a production website build:
 npm run build
 ```
 
+## Live Code Sync
+
+This repo includes a small Python helper that keeps local code and GitHub in sync by using normal Git commits, pulls, and pushes.
+
+Run one sync:
+
+```bash
+python3 scripts/live_git_sync.py --once
+```
+
+Keep syncing every 30 seconds:
+
+```bash
+python3 scripts/live_git_sync.py
+```
+
+Preview what it would do without changing Git:
+
+```bash
+python3 scripts/live_git_sync.py --dry-run --once
+```
+
 ## Data Storage
 
 Oasis Dine RMS is a web-only Firebase application. Production data must be stored in Firebase/Firestore only; the app does not use a packaged EXE, SQLite database, local JSON server, or browser `localStorage` persistence.
