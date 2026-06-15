@@ -68,8 +68,44 @@ function kitchenTicketsForQrOrder(order: RestaurantOrder): KitchenTicket[] {
   }));
 }
 
+function readQrUrlFallback(tableId: string): { table: DiningTable | null; branch: RestaurantBranch | null } {
+  if (typeof window === 'undefined') return { table: null, branch: null };
+  const params = new URLSearchParams(window.location.search);
+  const label = params.get('qrTableLabel') || '';
+  const areaId = params.get('qrTableArea') || '';
+  const branchId = params.get('qrBranchId') || '';
+  const branchNameEn = params.get('qrBranchNameEn') || '';
+  const branchNameAr = params.get('qrBranchNameAr') || '';
+  const table: DiningTable | null = label
+    ? {
+        id: tableId,
+        branchId: branchId || undefined,
+        areaId: areaId || 'default',
+        label,
+        seats: 0,
+        state: 'vacant',
+        updatedAt: Date.now(),
+      }
+    : null;
+  const branch: RestaurantBranch | null = branchId && (branchNameEn || branchNameAr)
+    ? {
+        id: branchId,
+        nameEn: branchNameEn || branchNameAr,
+        nameAr: branchNameAr || branchNameEn,
+        serviceTypes: [],
+        operatingHours: [],
+        cloudStatus: { status: 'unknown' },
+        active: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+    : null;
+  return { table, branch };
+}
+
 const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
   const { toast } = useToast();
+  const urlFallback = useMemo(() => readQrUrlFallback(tableId), [tableId]);
   const [tables, setTables] = useState<DiningTable[]>(() => StorageService.getTables());
   const [cloudTable, setCloudTable] = useState<DiningTable | null>(null);
   const [cloudBranch, setCloudBranch] = useState<RestaurantBranch | null>(null);
@@ -78,10 +114,12 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
   const [cloudVatRate, setCloudVatRate] = useState<number | null>(null);
   const [cloudLoading, setCloudLoading] = useState(true);
   const [cloudError, setCloudError] = useState('');
-  const [remoteSource, setRemoteSource] = useState<'cloud' | 'firestore' | 'local'>('local');
-  const table = cloudTable || tables.find(item => item.id === tableId);
-  const branchId = table?.branchId || StorageService.getActiveBranchId();
-  const branch = cloudBranch || StorageService.getBranches().find(item => item.id === branchId);
+  const [remoteSource, setRemoteSource] = useState<'cloud' | 'firestore' | 'local' | 'url'>('local');
+  const table = cloudTable || tables.find(item => item.id === tableId) || urlFallback.table;
+  const branchId = table?.branchId || urlFallback.branch?.id || StorageService.getActiveBranchId();
+  const branch = cloudBranch
+    || StorageService.getBranches().find(item => item.id === branchId)
+    || urlFallback.branch;
   const categories = cloudCategories.length ? cloudCategories : StorageService.getMenuCategories();
   const menuItems = (cloudMenuItems.length ? cloudMenuItems : StorageService.getMenuItems()).filter(item =>
     item.active && (!item.branchIds?.length || item.branchIds.includes(branchId))
@@ -136,11 +174,22 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
               setRemoteSource('firestore');
               return;
             }
+            // Firestore is reachable but the table id was not found. If the QR
+            // URL embeds enough info to identify the table, still hydrate the
+            // menu from Firestore so the customer can browse.
+            if (urlFallback.table) {
+              setCloudCategories(remoteCategories.filter(item => item.active !== false));
+              setCloudMenuItems(remoteItems.filter(item => item.active !== false));
+              setCloudVatRate(0.15);
+              setCloudError('');
+              setRemoteSource('firestore');
+              return;
+            }
           } catch {
-            // Fall through to local preview error below.
+            // Fall through to local/url preview error below.
           }
         }
-        setRemoteSource('local');
+        setRemoteSource(urlFallback.table ? 'url' : 'local');
         setCloudError(error instanceof Error ? error.message : 'Could not connect to the restaurant cloud server.');
       })
       .finally(() => {
@@ -346,11 +395,15 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
         <div className="mx-auto mt-20 max-w-md rounded-[20px] bg-white p-8 text-center shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
           <Utensils className="mx-auto mb-4 text-[#007AFF]" size={42} />
           <h1 className="text-3xl font-black tracking-tight text-[#1C1C1E]">Table not found</h1>
-          <p className="mt-3 text-sm font-semibold text-[#8E8E93]">{cloudError || 'Please scan the QR code on your table again.'}</p>
+          <p className="mt-3 text-sm font-semibold text-[#8E8E93]">
+            {cloudError || 'Please scan the QR code on your table again or ask a team member to reprint it.'}
+          </p>
         </div>
       </div>
     );
   }
+
+  const menuUnavailable = !cloudLoading && menuItems.length === 0 && categories.length === 0;
 
 function itemPhotos(item: MenuItem) {
   return item.images?.length ? item.images : item.image ? [item.image] : [];
@@ -453,9 +506,18 @@ function itemPhotos(item: MenuItem) {
           </div>
         )}
 
-        {cloudError && !cloudTable && (
+        {cloudError && !cloudTable && remoteSource !== 'url' && (
           <div className="mb-5 rounded-[18px] border border-orange-100 bg-[#FFF4E5] p-4 text-sm font-bold text-[#C2410C] shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
             Cloud server not connected: {cloudError}. This page is using local preview data only.
+          </div>
+        )}
+
+        {menuUnavailable && (
+          <div className="mb-5 rounded-[18px] border border-orange-100 bg-[#FFF4E5] p-4 text-sm font-bold text-[#C2410C] shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+            <p className="text-base font-black text-[#9A3412]">Live menu temporarily unavailable</p>
+            <p className="mt-1 text-sm font-semibold leading-5 text-[#C2410C]">
+              We could not reach the restaurant menu service from this device. Please ask a team member for a paper menu or to take your order directly. Your table ({table.label}) is ready.
+            </p>
           </div>
         )}
 
