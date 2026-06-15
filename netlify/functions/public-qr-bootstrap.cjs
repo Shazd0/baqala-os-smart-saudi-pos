@@ -1,4 +1,4 @@
-const { documentData, error, firestore, json, options } = require('./_firebase-admin.cjs');
+const { documentData, error, firestore, json, options } = require('../lib/firebase-admin.cjs');
 
 async function findTable(db, tableId) {
   const byId = documentData(await db.collection('tables').doc(tableId).get());

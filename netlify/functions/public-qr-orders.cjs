@@ -6,7 +6,7 @@ const {
   json,
   kitchenTicketsForQrOrder,
   options,
-} = require('./_firebase-admin.cjs');
+} = require('../lib/firebase-admin.cjs');
 
 function cleanString(value) {
   return String(value || '').trim();
