@@ -404,7 +404,7 @@ function App() {
   if (qrTableId) {
     return (
       <ToastProvider>
-        <CustomerQrOrder tableId={qrTableId} />
+        <CustomerQrOrder tableToken={qrTableId} />
       </ToastProvider>
     );
   }
