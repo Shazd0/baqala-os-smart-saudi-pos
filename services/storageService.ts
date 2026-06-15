@@ -51,6 +51,7 @@ import {
 import { INITIAL_STORE_CONFIG } from '../constants';
 import { FirebaseService, type FirestoreCollection } from './firebaseService';
 import { getActivation } from './licenseService';
+import { buildTablePublicCode } from './tableQr';
 import { createTrialMockStore } from './trialMockData';
 
 const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
@@ -318,6 +319,7 @@ const DEFAULT_DINING_AREAS: DiningArea[] = [
 
 const DEFAULT_TABLES: DiningTable[] = Array.from({ length: 10 }, (_, index) => ({
   id: `table-${index + 1}`,
+  publicCode: buildTablePublicCode({ branchId: 'branch-main', label: `T${index + 1}` }),
   branchId: 'branch-main',
   areaId: index < 6 ? 'area-main' : 'area-family',
   label: `T${index + 1}`,
@@ -467,6 +469,18 @@ const previewStore = (() => {
 })();
 
 let currentUser: User | null = null;
+
+function cloneStarterData<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+export function getStarterMenuCategories(): MenuCategory[] {
+  return cloneStarterData(DEFAULT_MENU_CATEGORIES);
+}
+
+export function getStarterMenuItems(): MenuItem[] {
+  return cloneStarterData(DEFAULT_MENU_ITEMS);
+}
 
 function ensureTrialMockStore() {
   if (!isTrialMode() || trialMockSeeded) return;
