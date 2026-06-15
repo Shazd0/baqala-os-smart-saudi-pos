@@ -41,6 +41,19 @@ function App() {
   const urlParams = new URLSearchParams(window.location.search);
   const qrTableId = urlParams.get('qrTable');
   const standaloneView = urlParams.get('standalone');
+
+  if (qrTableId) {
+    return (
+      <ToastProvider>
+        <CustomerQrOrder tableId={qrTableId} />
+      </ToastProvider>
+    );
+  }
+
+  return <StaffApp standaloneView={standaloneView} />;
+}
+
+function StaffApp({ standaloneView }: { standaloneView: string | null }) {
   const [activated, setActivated] = useState<boolean>(() => isActivated());
   const [view, setView] = useState<View>('pos');
   const [lang, setLang] = useState<Language>('en');
@@ -400,16 +413,7 @@ function App() {
     );
   };
 
-  /* ── 1. License gate — MUST come before everything else ── */
-  if (qrTableId) {
-    return (
-      <ToastProvider>
-        <CustomerQrOrder tableId={qrTableId} />
-      </ToastProvider>
-    );
-  }
-
-  /* ── 2. License gate — MUST come before staff app ── */
+  /* ── 1. License gate — MUST come before staff app ── */
   if (!activated) {
     return (
       <ToastProvider>
@@ -418,12 +422,12 @@ function App() {
     );
   }
 
-  /* ── 3. First-time store setup ── */
+  /* ── 2. First-time store setup ── */
   if (!setupComplete) {
     return <SetupWizard onComplete={completeSetup} />;
   }
 
-  /* ── 4. Login ── */
+  /* ── 3. Login ── */
   if (!currentUser) {
     return <Login onLogin={handleLogin} />;
   }
