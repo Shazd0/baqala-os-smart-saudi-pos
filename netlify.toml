@@ -1,6 +1,12 @@
 [build]
-  publish = "netlify-updates"
-  command = ""
+  publish = "dist"
+  command = "npm run build"
+
+# Single-page app: serve index.html for client-side routes (e.g. /?qrTable=...).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
 
 [[headers]]
   for = "/updates/*"
