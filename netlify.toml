@@ -1,0 +1,9 @@
+[build]
+  publish = "netlify-updates"
+  command = ""
+
+[[headers]]
+  for = "/updates/*"
+  [headers.values]
+    Cache-Control = "public, max-age=60"
+    X-Content-Type-Options = "nosniff"
