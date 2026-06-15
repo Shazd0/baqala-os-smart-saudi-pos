@@ -3,7 +3,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { Armchair, Download, MapPin, Pencil, Plus, Save, Store, Table2, Trash2, UsersRound } from 'lucide-react';
 import { DiningTable, Language, RestaurantBranch } from '../types';
 import { StorageService } from '../services/storageService';
-import { getPublicCloudBaseUrl } from '../services/cloudClient';
+import { getQrCloudUrlOverride } from '../services/cloudClient';
 import ConfirmDialog from './ConfirmDialog';
 
 interface RestaurantAdminProps {
@@ -44,10 +44,14 @@ const tableStatusClass = (state: string) => {
 };
 
 const qrUrlForTable = (table: DiningTable) => {
-  const cloudUrl = getPublicCloudBaseUrl();
-  const url = new URL(cloudUrl || window.location.href, window.location.origin);
+  const cloudUrl = getQrCloudUrlOverride();
+  const url = new URL(window.location.href);
   url.search = '';
+  url.hash = '';
   url.searchParams.set('qrTable', table.id);
+  if (cloudUrl) {
+    url.searchParams.set('cloudUrl', cloudUrl);
+  }
   return url.toString();
 };
 

@@ -48,3 +48,13 @@ Oasis Dine RMS is a web-only Firebase application. Production data must be store
 - Card payments use an external Mada/card terminal workflow. The cashier enters the approval, RRN, or reference number before saving the bill.
 - ZATCA support prepares local invoice hashes, signatures, QR data, and UBL XML queue records. Official ZATCA onboarding, API reporting/clearance, sandbox validation, and compliance review are still required before marketing the app as certified.
 - Production activation uses the configured web activation API. Do not persist activation or business records in device-local storage.
+
+## Netlify QR Ordering
+
+If the customer QR page is hosted on static hosting (for example Netlify), set `VITE_PUBLIC_CLOUD_URL` to your cloud API base URL so scanned links can resolve `/public/qr/*` routes correctly.
+
+Example:
+
+```text
+VITE_PUBLIC_CLOUD_URL=https://your-cloud-api.example.com
+```
