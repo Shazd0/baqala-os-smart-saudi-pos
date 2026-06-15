@@ -23,8 +23,11 @@ export function getPublicCloudBaseUrl(config: CloudStorageConfig = StorageServic
   const queryUrl = params.get('cloudUrl');
   if (queryUrl) return cleanUrl(queryUrl);
   const configured = config.enabled ? getCloudBaseUrl(config) : '';
-  if (configured) return configured;
-  return cleanUrl(window.location.origin);
+  return configured;
+}
+
+export function hasPublicCloudBaseUrl(config: CloudStorageConfig = StorageService.getCloudStorageConfig()) {
+  return Boolean(getPublicCloudBaseUrl(config));
 }
 
 async function request<T>(path: string, options: RequestInit = {}, config = StorageService.getCloudStorageConfig()): Promise<T> {

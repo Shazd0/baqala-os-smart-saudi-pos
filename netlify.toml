@@ -1,7 +1,26 @@
 [build]
-  publish = "netlify-updates"
-  command = ""
+  publish = "dist"
+  command = "npm run build"
 
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--legacy-peer-deps"
+
+# Single-page app fallback so deep links (including ?qrTable=...) always
+# resolve to the Vite-built index.html and never hit Netlify's 404 page.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Long-lived caching for hashed Vite assets.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    X-Content-Type-Options = "nosniff"
+
+# Updates channel (desktop auto-updater feed) keeps a short cache.
 [[headers]]
   for = "/updates/*"
   [headers.values]
