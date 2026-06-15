@@ -64,9 +64,18 @@ const TableFloor: React.FC<TableFloorProps> = ({ lang, onChange, onCheckout }) =
 
   const qrUrlForTable = (table: DiningTable) => {
     const cloudUrl = getPublicCloudBaseUrl();
-    const url = new URL(cloudUrl || window.location.href, window.location.origin);
+    const url = new URL(window.location.href);
     url.search = '';
     url.searchParams.set('qrTable', table.id);
+    url.searchParams.set('tableLabel', table.label);
+    if (table.branchId) {
+      url.searchParams.set('branchId', table.branchId);
+    }
+    const normalizedCloud = String(cloudUrl || '').replace(/\/+$/, '');
+    const normalizedOrigin = String(window.location.origin || '').replace(/\/+$/, '');
+    if (normalizedCloud && normalizedCloud !== normalizedOrigin) {
+      url.searchParams.set('cloudUrl', normalizedCloud);
+    }
     return url.toString();
   };
 
