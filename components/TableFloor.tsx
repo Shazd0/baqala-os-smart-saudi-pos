@@ -5,7 +5,7 @@ import { CartItem, Category, DiningTable, Language, RestaurantOrder, TableState 
 import { StorageService } from '../services/storageService';
 import { orderItemUnitTotal } from '../services/restaurantService';
 import { processMadaPayment } from '../services/paymentGateway';
-import { getPublicCloudBaseUrl } from '../services/cloudClient';
+import { getQrCloudUrlOverride } from '../services/cloudClient';
 import ConfirmDialog from './ConfirmDialog';
 import { useToast } from './Toast';
 
@@ -63,10 +63,14 @@ const TableFloor: React.FC<TableFloorProps> = ({ lang, onChange, onCheckout }) =
   const activeBranchId = StorageService.getActiveBranchId();
 
   const qrUrlForTable = (table: DiningTable) => {
-    const cloudUrl = getPublicCloudBaseUrl();
-    const url = new URL(cloudUrl || window.location.href, window.location.origin);
+    const cloudUrl = getQrCloudUrlOverride();
+    const url = new URL(window.location.href);
     url.search = '';
+    url.hash = '';
     url.searchParams.set('qrTable', table.id);
+    if (cloudUrl) {
+      url.searchParams.set('cloudUrl', cloudUrl);
+    }
     return url.toString();
   };
 
