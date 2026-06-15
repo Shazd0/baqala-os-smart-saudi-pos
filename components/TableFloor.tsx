@@ -62,11 +62,32 @@ const TableFloor: React.FC<TableFloorProps> = ({ lang, onChange, onCheckout }) =
   const [processingTableId, setProcessingTableId] = useState<string | null>(null);
   const activeBranchId = StorageService.getActiveBranchId();
 
+  const branchesById = useMemo(() => {
+    const map = new Map<string, { nameEn: string; nameAr: string }>();
+    StorageService.getBranches().forEach(branch => {
+      map.set(branch.id, { nameEn: branch.nameEn, nameAr: branch.nameAr });
+    });
+    return map;
+  }, []);
+
   const qrUrlForTable = (table: DiningTable) => {
     const cloudUrl = getPublicCloudBaseUrl();
     const url = new URL(cloudUrl || window.location.href, window.location.origin);
     url.search = '';
     url.searchParams.set('qrTable', table.id);
+    // Embed minimal table identity in the QR URL so the customer page can show
+    // a meaningful welcome (e.g. "Table 12 / Tandeel") even when the cloud
+    // bootstrap fails. This avoids a hard "Table not found" error when the
+    // customer scans on a phone that has no local data and no backend reachable.
+    if (table.label) url.searchParams.set('qrTableLabel', table.label);
+    if (table.areaId) url.searchParams.set('qrTableArea', table.areaId);
+    const branchId = table.branchId || activeBranchId;
+    if (branchId) {
+      url.searchParams.set('qrBranchId', branchId);
+      const branch = branchesById.get(branchId);
+      if (branch?.nameEn) url.searchParams.set('qrBranchNameEn', branch.nameEn);
+      if (branch?.nameAr) url.searchParams.set('qrBranchNameAr', branch.nameAr);
+    }
     return url.toString();
   };
 
