@@ -10,6 +10,8 @@ import { useToast } from './Toast';
 
 interface CustomerQrOrderProps {
   tableId: string;
+  tableLabelHint?: string;
+  branchIdHint?: string;
 }
 
 interface QrCartItem {
@@ -68,7 +70,39 @@ function kitchenTicketsForQrOrder(order: RestaurantOrder): KitchenTicket[] {
   }));
 }
 
-const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
+function normalizeTableToken(value?: string | null) {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function extractDigits(value?: string | null) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function resolveTable(
+  tables: DiningTable[],
+  tableToken: string,
+  tableLabelHint?: string,
+  branchIdHint?: string,
+) {
+  const normalizedToken = normalizeTableToken(tableToken);
+  const normalizedLabelHint = normalizeTableToken(tableLabelHint);
+  const digitToken = extractDigits(tableToken) || extractDigits(tableLabelHint);
+  const direct = tables.filter(table => table.id === tableToken || table.label === tableToken);
+  if (direct.length) {
+    return direct.find(table => !branchIdHint || table.branchId === branchIdHint) || direct[0];
+  }
+  const fuzzy = tables.filter(table => {
+    const normalizedId = normalizeTableToken(table.id);
+    const normalizedLabel = normalizeTableToken(table.label);
+    if (normalizedToken && (normalizedId === normalizedToken || normalizedLabel === normalizedToken)) return true;
+    if (normalizedLabelHint && (normalizedId === normalizedLabelHint || normalizedLabel === normalizedLabelHint)) return true;
+    if (!digitToken) return false;
+    return extractDigits(table.id) === digitToken || extractDigits(table.label) === digitToken;
+  });
+  return fuzzy.find(table => !branchIdHint || table.branchId === branchIdHint) || fuzzy[0];
+}
+
+const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId, tableLabelHint, branchIdHint }) => {
   const { toast } = useToast();
   const [tables, setTables] = useState<DiningTable[]>(() => StorageService.getTables());
   const [cloudTable, setCloudTable] = useState<DiningTable | null>(null);
@@ -79,8 +113,8 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
   const [cloudLoading, setCloudLoading] = useState(true);
   const [cloudError, setCloudError] = useState('');
   const [remoteSource, setRemoteSource] = useState<'cloud' | 'firestore' | 'local'>('local');
-  const table = cloudTable || tables.find(item => item.id === tableId);
-  const branchId = table?.branchId || StorageService.getActiveBranchId();
+  const table = cloudTable || resolveTable(tables, tableId, tableLabelHint, branchIdHint);
+  const branchId = table?.branchId || branchIdHint || StorageService.getActiveBranchId();
   const branch = cloudBranch || StorageService.getBranches().find(item => item.id === branchId);
   const categories = cloudCategories.length ? cloudCategories : StorageService.getMenuCategories();
   const menuItems = (cloudMenuItems.length ? cloudMenuItems : StorageService.getMenuItems()).filter(item =>
@@ -124,7 +158,7 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
               FirebaseService.list<MenuCategory>('menuCategories'),
               FirebaseService.list<MenuItem>('menuItems'),
             ]);
-            const remoteTable = remoteTables.find(item => item.id === tableId);
+            const remoteTable = resolveTable(remoteTables, tableId, tableLabelHint, branchIdHint);
             if (remoteTable) {
               const remoteBranch = remoteBranches.find(item => item.id === remoteTable.branchId) || null;
               setCloudTable(remoteTable);
@@ -149,7 +183,7 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
     return () => {
       active = false;
     };
-  }, [tableId]);
+  }, [tableId, tableLabelHint, branchIdHint]);
 
   const orderItems = useMemo(() => asOrderItems(cart), [cart]);
   const totals = useMemo(() => calculateRestaurantOrderTotals(orderItems, 0, cloudVatRate || StorageService.getConfig().vatRate || 0.15), [orderItems, cloudVatRate]);

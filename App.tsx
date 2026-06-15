@@ -39,7 +39,9 @@ const APP_NAME = 'Oasis Dine RMS';
 
 function App() {
   const urlParams = new URLSearchParams(window.location.search);
-  const qrTableId = urlParams.get('qrTable');
+  const qrTableId = urlParams.get('qrTable') || urlParams.get('tableId');
+  const qrTableLabel = urlParams.get('tableLabel') || urlParams.get('qrLabel');
+  const qrBranchId = urlParams.get('branchId');
   const standaloneView = urlParams.get('standalone');
   const [activated, setActivated] = useState<boolean>(() => isActivated());
   const [view, setView] = useState<View>('pos');
@@ -401,10 +403,14 @@ function App() {
   };
 
   /* ── 1. License gate — MUST come before everything else ── */
-  if (qrTableId) {
+  if (qrTableId || qrTableLabel) {
     return (
       <ToastProvider>
-        <CustomerQrOrder tableId={qrTableId} />
+        <CustomerQrOrder
+          tableId={qrTableId || qrTableLabel || ''}
+          tableLabelHint={qrTableLabel || undefined}
+          branchIdHint={qrBranchId || undefined}
+        />
       </ToastProvider>
     );
   }
