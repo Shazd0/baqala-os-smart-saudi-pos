@@ -22,7 +22,7 @@ export function getPublicCloudBaseUrl(config: CloudStorageConfig = StorageServic
   const params = new URLSearchParams(window.location.search);
   const queryUrl = params.get('cloudUrl');
   if (queryUrl) return cleanUrl(queryUrl);
-  const configured = getCloudBaseUrl(config);
+  const configured = config.enabled ? getCloudBaseUrl(config) : '';
   if (configured) return configured;
   return cleanUrl(window.location.origin);
 }
