@@ -5,6 +5,7 @@ import { StorageService } from '../services/storageService';
 import { calculateRestaurantOrderTotals } from '../services/restaurantService';
 import { CloudClient } from '../services/cloudClient';
 import { FirebaseService } from '../services/firebaseService';
+import { bootstrapQrOrdering } from '../services/qrOrderService';
 import ConfirmDialog from './ConfirmDialog';
 import { useToast } from './Toast';
 
@@ -103,7 +104,7 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
   useEffect(() => {
     let active = true;
     setCloudLoading(true);
-    CloudClient.publicQrBootstrap(tableId)
+    bootstrapQrOrdering(tableId)
       .then(data => {
         if (!active) return;
         setCloudTable(data.table);
@@ -112,34 +113,10 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
         setCloudMenuItems(data.menuItems || []);
         setCloudVatRate(data.vatRate || 0.15);
         setCloudError('');
-        setRemoteSource('cloud');
+        setRemoteSource(data.source);
       })
-      .catch(async error => {
+      .catch(error => {
         if (!active) return;
-        if (StorageService.isFirebaseConfigured()) {
-          try {
-            const [remoteTables, remoteBranches, remoteCategories, remoteItems] = await Promise.all([
-              FirebaseService.list<DiningTable>('tables'),
-              FirebaseService.list<RestaurantBranch>('branches'),
-              FirebaseService.list<MenuCategory>('menuCategories'),
-              FirebaseService.list<MenuItem>('menuItems'),
-            ]);
-            const remoteTable = remoteTables.find(item => item.id === tableId);
-            if (remoteTable) {
-              const remoteBranch = remoteBranches.find(item => item.id === remoteTable.branchId) || null;
-              setCloudTable(remoteTable);
-              setCloudBranch(remoteBranch);
-              setCloudCategories(remoteCategories.filter(item => item.active !== false));
-              setCloudMenuItems(remoteItems.filter(item => item.active !== false));
-              setCloudVatRate(0.15);
-              setCloudError('');
-              setRemoteSource('firestore');
-              return;
-            }
-          } catch {
-            // Fall through to local preview error below.
-          }
-        }
         setRemoteSource('local');
         setCloudError(error instanceof Error ? error.message : 'Could not connect to the restaurant cloud server.');
       })
@@ -292,7 +269,7 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
         updatedAt: Date.now(),
         note: [`Guest: ${guestName.trim()}`, `Mobile: ${guestPhone.trim()}`, note.trim()].filter(Boolean).join(' / '),
       };
-      if (remoteSource === 'firestore' && StorageService.isFirebaseConfigured()) {
+      if (remoteSource === 'firestore' && FirebaseService.isConfigured()) {
         const saved: RestaurantOrder = {
           ...order,
           orderNumber: `OD-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Date.now()).slice(-4)}`,

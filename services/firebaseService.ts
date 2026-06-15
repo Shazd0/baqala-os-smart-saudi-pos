@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   getFirestore,
   onSnapshot,
@@ -112,6 +113,14 @@ export const FirebaseService = {
     const database = db();
     if (!database || !id) return;
     await deleteDoc(doc(database, collectionName, id));
+  },
+
+  getById: async <T>(collectionName: FirestoreCollection, id: string): Promise<T | null> => {
+    const database = db();
+    if (!database || !id) return null;
+    const snapshot = await getDoc(doc(database, collectionName, id));
+    if (!snapshot.exists()) return null;
+    return { id: snapshot.id, ...snapshot.data() } as T;
   },
 
   list: async <T>(collectionName: FirestoreCollection): Promise<T[]> => {

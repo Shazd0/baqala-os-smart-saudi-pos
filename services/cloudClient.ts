@@ -18,13 +18,46 @@ export function getCloudBaseUrl(config: CloudStorageConfig = StorageService.getC
   return cleanUrl(config.cloudflareTunnelUrl || config.lanApiUrl);
 }
 
-export function getPublicCloudBaseUrl(config: CloudStorageConfig = StorageService.getCloudStorageConfig()) {
+export function hasDedicatedCloudBackend(config: CloudStorageConfig = StorageService.getCloudStorageConfig()) {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('cloudUrl')) return true;
+  return !!(config.enabled && (config.cloudflareTunnelUrl || config.lanApiUrl));
+}
+
+function getPublicCloudApiBaseUrl(config: CloudStorageConfig = StorageService.getCloudStorageConfig()) {
   const params = new URLSearchParams(window.location.search);
   const queryUrl = params.get('cloudUrl');
   if (queryUrl) return cleanUrl(queryUrl);
-  const configured = config.enabled ? getCloudBaseUrl(config) : '';
-  if (configured) return configured;
-  return cleanUrl(window.location.origin);
+  if (config.enabled && (config.cloudflareTunnelUrl || config.lanApiUrl)) {
+    return getCloudBaseUrl(config);
+  }
+  return '';
+}
+
+export function getPublicQrPageBaseUrl() {
+  if (typeof window === 'undefined') return '';
+  const directory = window.location.pathname.replace(/\/[^/]*$/, '');
+  return cleanUrl(`${window.location.origin}${directory || ''}`);
+}
+
+/** Customer-facing ordering page URL encoded in table QR codes. */
+export function getCustomerOrderingPageUrl(tableId: string, config: CloudStorageConfig = StorageService.getCloudStorageConfig()) {
+  const params = new URLSearchParams(window.location.search);
+  const queryCloudUrl = params.get('cloudUrl');
+  const base = queryCloudUrl
+    ? cleanUrl(queryCloudUrl)
+    : config.enabled && (config.cloudflareTunnelUrl || config.lanApiUrl)
+      ? getCloudBaseUrl(config)
+      : getPublicQrPageBaseUrl() || cleanUrl(window.location.origin);
+  const url = new URL(base, window.location.origin);
+  url.search = '';
+  url.searchParams.set('qrTable', tableId);
+  return url.toString();
+}
+
+/** @deprecated Use getCustomerOrderingPageUrl for QR links and getPublicCloudApiBaseUrl for API calls. */
+export function getPublicCloudBaseUrl(config: CloudStorageConfig = StorageService.getCloudStorageConfig()) {
+  return getPublicCloudApiBaseUrl(config) || getPublicQrPageBaseUrl();
 }
 
 async function request<T>(path: string, options: RequestInit = {}, config = StorageService.getCloudStorageConfig()): Promise<T> {
@@ -46,7 +79,7 @@ async function request<T>(path: string, options: RequestInit = {}, config = Stor
 }
 
 async function publicRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const baseUrl = getPublicCloudBaseUrl();
+  const baseUrl = getPublicCloudApiBaseUrl();
   if (!baseUrl) throw new Error('Cloud URL is not configured.');
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
