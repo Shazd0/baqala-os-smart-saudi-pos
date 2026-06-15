@@ -4,6 +4,7 @@ import { Armchair, Download, MapPin, Pencil, Plus, Save, Store, Table2, Trash2, 
 import { DiningTable, Language, RestaurantBranch } from '../types';
 import { StorageService } from '../services/storageService';
 import { getPublicCloudBaseUrl } from '../services/cloudClient';
+import { buildTablePublicCode, ensureUniqueTablePublicCode } from '../services/tableQr';
 import ConfirmDialog from './ConfirmDialog';
 
 interface RestaurantAdminProps {
@@ -45,9 +46,14 @@ const tableStatusClass = (state: string) => {
 
 const qrUrlForTable = (table: DiningTable) => {
   const cloudUrl = getPublicCloudBaseUrl();
-  const url = new URL(cloudUrl || window.location.href, window.location.origin);
+  const url = new URL(window.location.href);
   url.search = '';
-  url.searchParams.set('qrTable', table.id);
+  url.searchParams.set('qrTable', table.publicCode || buildTablePublicCode(table));
+  url.searchParams.set('tableLabel', table.label);
+  if (table.branchId) url.searchParams.set('branchId', table.branchId);
+  if (cloudUrl && cloudUrl !== window.location.origin) {
+    url.searchParams.set('cloudUrl', cloudUrl);
+  }
   return url.toString();
 };
 
@@ -154,12 +160,16 @@ const RestaurantAdmin: React.FC<RestaurantAdminProps> = ({ lang, onChange }) => 
   const saveTable = () => {
     if (!tableDraft.label.trim()) return;
     setSavingTable(true);
-    const savedTables = StorageService.saveTable({
+    const nextTable: DiningTable = {
       ...tableDraft,
       id: tableDraft.id || `TBL-${Date.now()}`,
       branchId: tableDraft.branchId || activeBranchId,
       areaId: tableDraft.areaId || 'area-main',
       updatedAt: Date.now(),
+    };
+    const savedTables = StorageService.saveTable({
+      ...nextTable,
+      publicCode: ensureUniqueTablePublicCode(nextTable, tables),
     });
     setTables(savedTables);
     setTableDraft(emptyTable(activeBranchId));

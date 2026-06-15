@@ -224,6 +224,7 @@ export interface DiningArea {
 
 export interface DiningTable {
   id: string;
+  publicCode?: string;
   branchId?: string;
   areaId: string;
   label: string;

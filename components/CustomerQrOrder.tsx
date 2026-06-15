@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ChefHat, MessageSquare, Minus, Phone, Plus, Search, ShoppingBag, Trash2, UserRound, Utensils, X } from 'lucide-react';
 import { DiningTable, KitchenTicket, MenuCategory, MenuItem, RestaurantBranch, RestaurantOrder, RestaurantOrderItem } from '../types';
-import { StorageService } from '../services/storageService';
+import { getStarterMenuCategories, getStarterMenuItems, StorageService } from '../services/storageService';
 import { calculateRestaurantOrderTotals } from '../services/restaurantService';
 import { CloudClient } from '../services/cloudClient';
 import { FirebaseService } from '../services/firebaseService';
+import { buildTablePublicCode, findTableForQr } from '../services/tableQr';
 import ConfirmDialog from './ConfirmDialog';
 import { useToast } from './Toast';
 
@@ -70,6 +71,14 @@ function kitchenTicketsForQrOrder(order: RestaurantOrder): KitchenTicket[] {
 
 const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
   const { toast } = useToast();
+  const qrParams = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      branchId: params.get('branchId'),
+      tableLabel: params.get('tableLabel'),
+      cloudUrl: params.get('cloudUrl'),
+    };
+  }, []);
   const [tables, setTables] = useState<DiningTable[]>(() => StorageService.getTables());
   const [cloudTable, setCloudTable] = useState<DiningTable | null>(null);
   const [cloudBranch, setCloudBranch] = useState<RestaurantBranch | null>(null);
@@ -79,11 +88,25 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
   const [cloudLoading, setCloudLoading] = useState(true);
   const [cloudError, setCloudError] = useState('');
   const [remoteSource, setRemoteSource] = useState<'cloud' | 'firestore' | 'local'>('local');
-  const table = cloudTable || tables.find(item => item.id === tableId);
-  const branchId = table?.branchId || StorageService.getActiveBranchId();
+  const starterCategories = useMemo(() => getStarterMenuCategories(), []);
+  const starterMenuItems = useMemo(() => getStarterMenuItems(), []);
+  const table = cloudTable || findTableForQr(tables, tableId, qrParams);
+  const branchId = table?.branchId || qrParams.branchId || StorageService.getActiveBranchId();
   const branch = cloudBranch || StorageService.getBranches().find(item => item.id === branchId);
-  const categories = cloudCategories.length ? cloudCategories : StorageService.getMenuCategories();
-  const menuItems = (cloudMenuItems.length ? cloudMenuItems : StorageService.getMenuItems()).filter(item =>
+  const fallbackCategories = StorageService.getMenuCategories();
+  const fallbackMenuItems = StorageService.getMenuItems();
+  const categories = cloudCategories.length
+    ? cloudCategories
+    : fallbackCategories.length
+      ? fallbackCategories
+      : starterCategories;
+  const menuItems = (
+    cloudMenuItems.length
+      ? cloudMenuItems
+      : fallbackMenuItems.length
+        ? fallbackMenuItems
+        : starterMenuItems
+  ).filter(item =>
     item.active && (!item.branchIds?.length || item.branchIds.includes(branchId))
   );
   const [cart, setCart] = useState<QrCartItem[]>([]);
@@ -102,54 +125,84 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
 
   useEffect(() => {
     let active = true;
-    setCloudLoading(true);
-    CloudClient.publicQrBootstrap(tableId)
-      .then(data => {
-        if (!active) return;
-        setCloudTable(data.table);
-        setCloudBranch(data.branch);
-        setCloudCategories(data.categories || []);
-        setCloudMenuItems(data.menuItems || []);
-        setCloudVatRate(data.vatRate || 0.15);
-        setCloudError('');
-        setRemoteSource('cloud');
-      })
-      .catch(async error => {
-        if (!active) return;
-        if (StorageService.isFirebaseConfigured()) {
-          try {
-            const [remoteTables, remoteBranches, remoteCategories, remoteItems] = await Promise.all([
-              FirebaseService.list<DiningTable>('tables'),
-              FirebaseService.list<RestaurantBranch>('branches'),
-              FirebaseService.list<MenuCategory>('menuCategories'),
-              FirebaseService.list<MenuItem>('menuItems'),
-            ]);
-            const remoteTable = remoteTables.find(item => item.id === tableId);
-            if (remoteTable) {
-              const remoteBranch = remoteBranches.find(item => item.id === remoteTable.branchId) || null;
-              setCloudTable(remoteTable);
-              setCloudBranch(remoteBranch);
-              setCloudCategories(remoteCategories.filter(item => item.active !== false));
-              setCloudMenuItems(remoteItems.filter(item => item.active !== false));
-              setCloudVatRate(0.15);
-              setCloudError('');
-              setRemoteSource('firestore');
-              return;
-            }
-          } catch {
-            // Fall through to local preview error below.
-          }
+    const bootstrap = async () => {
+      setCloudLoading(true);
+      setCloudTable(null);
+      setCloudBranch(null);
+      setCloudCategories([]);
+      setCloudMenuItems([]);
+      setCloudVatRate(null);
+      setCloudError('');
+      let lastError = '';
+
+      const shouldTryCloud = Boolean(qrParams.cloudUrl || StorageService.getCloudStorageConfig().enabled);
+      if (shouldTryCloud) {
+        try {
+          const data = await CloudClient.publicQrBootstrap(tableId);
+          if (!active) return;
+          setCloudTable(data.table);
+          setCloudBranch(data.branch);
+          setCloudCategories(data.categories || []);
+          setCloudMenuItems(data.menuItems || []);
+          setCloudVatRate(data.vatRate || 0.15);
+          setRemoteSource('cloud');
+          return;
+        } catch (error) {
+          lastError = error instanceof Error ? error.message : 'Could not connect to the restaurant cloud server.';
         }
+      }
+
+      if (StorageService.isFirebaseConfigured()) {
+        try {
+          const [remoteTables, remoteBranches, remoteCategories, remoteItems] = await Promise.all([
+            FirebaseService.list<DiningTable>('tables'),
+            FirebaseService.list<RestaurantBranch>('branches'),
+            FirebaseService.list<MenuCategory>('menuCategories'),
+            FirebaseService.list<MenuItem>('menuItems'),
+          ]);
+          if (!active) return;
+          const remoteTable = findTableForQr(remoteTables, tableId, qrParams);
+          if (remoteTable) {
+            const remoteBranch = remoteBranches.find(item => item.id === remoteTable.branchId) || null;
+            setCloudTable({
+              ...remoteTable,
+              publicCode: remoteTable.publicCode || buildTablePublicCode(remoteTable),
+            });
+            setCloudBranch(remoteBranch);
+            setCloudCategories(remoteCategories.filter(item => item.active !== false));
+            setCloudMenuItems(remoteItems.filter(item => item.active !== false));
+            setCloudVatRate(0.15);
+            setRemoteSource('firestore');
+            return;
+          }
+          lastError = lastError || 'This QR code is not linked to an active table.';
+        } catch (error) {
+          lastError = error instanceof Error ? error.message : 'Could not load the live restaurant menu.';
+        }
+      }
+
+      const localTables = StorageService.getTables();
+      const localTable = findTableForQr(localTables, tableId, qrParams);
+      if (!active) return;
+      if (localTable) {
+        setTables(localTables);
         setRemoteSource('local');
-        setCloudError(error instanceof Error ? error.message : 'Could not connect to the restaurant cloud server.');
-      })
-      .finally(() => {
-        if (active) setCloudLoading(false);
-      });
+        return;
+      }
+
+      setRemoteSource('local');
+      setCloudError(lastError || 'Please scan the QR code on your table again.');
+      setTables(localTables);
+      setCloudLoading(false);
+    };
+
+    void bootstrap().finally(() => {
+      if (active) setCloudLoading(false);
+    });
     return () => {
       active = false;
     };
-  }, [tableId]);
+  }, [qrParams, tableId]);
 
   const orderItems = useMemo(() => asOrderItems(cart), [cart]);
   const totals = useMemo(() => calculateRestaurantOrderTotals(orderItems, 0, cloudVatRate || StorageService.getConfig().vatRate || 0.15), [orderItems, cloudVatRate]);
