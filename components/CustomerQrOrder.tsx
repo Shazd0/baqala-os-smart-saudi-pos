@@ -103,7 +103,21 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
   useEffect(() => {
     let active = true;
     setCloudLoading(true);
-    CloudClient.publicQrBootstrap(tableId)
+
+    // Only hit the cloud API when a real backend URL is explicitly configured.
+    // getPublicCloudBaseUrl() falls back to window.location.origin for static
+    // hosts (e.g. Netlify) that have no /public/qr/* API routes, which would
+    // always produce a 404. Detect that case and skip straight to Firestore.
+    const urlParams = new URLSearchParams(window.location.search);
+    const cloudConfig = StorageService.getCloudStorageConfig();
+    const hasCloudBackend =
+      !!urlParams.get('cloudUrl') ||
+      !!(cloudConfig.enabled && (cloudConfig.cloudflareTunnelUrl || cloudConfig.lanApiUrl));
+
+    (hasCloudBackend
+      ? CloudClient.publicQrBootstrap(tableId)
+      : Promise.reject(null)
+    )
       .then(data => {
         if (!active) return;
         setCloudTable(data.table);
@@ -141,7 +155,7 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
           }
         }
         setRemoteSource('local');
-        setCloudError(error instanceof Error ? error.message : 'Could not connect to the restaurant cloud server.');
+        setCloudError(error instanceof Error ? error.message : '');
       })
       .finally(() => {
         if (active) setCloudLoading(false);
