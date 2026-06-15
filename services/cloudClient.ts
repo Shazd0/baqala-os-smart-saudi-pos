@@ -27,6 +27,16 @@ export function getPublicCloudBaseUrl(config: CloudStorageConfig = StorageServic
   return cleanUrl(window.location.origin);
 }
 
+// True only when a real cloud server (LAN/Cloudflare tunnel) is explicitly configured.
+// When the app is served statically (e.g. Netlify) without a cloud server, the public
+// base URL falls back to the page origin, which has no `/public/qr/*` endpoints. In that
+// case we must NOT attempt cloud HTTP calls — they always 404 — and use Firebase instead.
+export function hasExplicitPublicCloudUrl(config: CloudStorageConfig = StorageService.getCloudStorageConfig()) {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('cloudUrl')) return true;
+  return !!(config.enabled && getCloudBaseUrl(config));
+}
+
 async function request<T>(path: string, options: RequestInit = {}, config = StorageService.getCloudStorageConfig()): Promise<T> {
   const baseUrl = getCloudBaseUrl(config);
   if (!baseUrl) throw new Error('Cloud storage URL is not configured.');
@@ -85,6 +95,8 @@ export interface PublicQrOrderPayload {
 }
 
 export const CloudClient = {
+  hasExplicitPublicCloudUrl: () => hasExplicitPublicCloudUrl(),
+
   isConfigured: () => {
     const config = StorageService.getCloudStorageConfig();
     return !!(config.enabled && (config.cloudflareTunnelUrl || config.lanApiUrl) && config.apiToken);

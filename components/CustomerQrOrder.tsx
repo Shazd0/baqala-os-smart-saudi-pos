@@ -103,49 +103,72 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
   useEffect(() => {
     let active = true;
     setCloudLoading(true);
-    CloudClient.publicQrBootstrap(tableId)
-      .then(data => {
-        if (!active) return;
-        setCloudTable(data.table);
-        setCloudBranch(data.branch);
-        setCloudCategories(data.categories || []);
-        setCloudMenuItems(data.menuItems || []);
-        setCloudVatRate(data.vatRate || 0.15);
+
+    const loadFromFirestore = async (): Promise<boolean> => {
+      if (!StorageService.isFirebaseConfigured()) return false;
+      try {
+        const [remoteTables, remoteBranches, remoteCategories, remoteItems] = await Promise.all([
+          FirebaseService.list<DiningTable>('tables'),
+          FirebaseService.list<RestaurantBranch>('branches'),
+          FirebaseService.list<MenuCategory>('menuCategories'),
+          FirebaseService.list<MenuItem>('menuItems'),
+        ]);
+        if (!active) return true;
+        const remoteTable = remoteTables.find(item => item.id === tableId);
+        if (!remoteTable) return false;
+        const remoteBranch = remoteBranches.find(item => item.id === remoteTable.branchId) || null;
+        setCloudTable(remoteTable);
+        setCloudBranch(remoteBranch);
+        setCloudCategories(remoteCategories.filter(item => item.active !== false));
+        setCloudMenuItems(remoteItems.filter(item => item.active !== false));
+        setCloudVatRate(0.15);
         setCloudError('');
-        setRemoteSource('cloud');
-      })
-      .catch(async error => {
-        if (!active) return;
-        if (StorageService.isFirebaseConfigured()) {
-          try {
-            const [remoteTables, remoteBranches, remoteCategories, remoteItems] = await Promise.all([
-              FirebaseService.list<DiningTable>('tables'),
-              FirebaseService.list<RestaurantBranch>('branches'),
-              FirebaseService.list<MenuCategory>('menuCategories'),
-              FirebaseService.list<MenuItem>('menuItems'),
-            ]);
-            const remoteTable = remoteTables.find(item => item.id === tableId);
-            if (remoteTable) {
-              const remoteBranch = remoteBranches.find(item => item.id === remoteTable.branchId) || null;
-              setCloudTable(remoteTable);
-              setCloudBranch(remoteBranch);
-              setCloudCategories(remoteCategories.filter(item => item.active !== false));
-              setCloudMenuItems(remoteItems.filter(item => item.active !== false));
-              setCloudVatRate(0.15);
-              setCloudError('');
-              setRemoteSource('firestore');
-              return;
-            }
-          } catch {
-            // Fall through to local preview error below.
-          }
+        setRemoteSource('firestore');
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    const bootstrap = async () => {
+      // Only call the cloud HTTP server when one is actually configured. On a static
+      // host (e.g. Netlify) the public base URL defaults to the page origin, which has
+      // no `/public/qr/*` endpoints and always returns 404 — so prefer Firebase there.
+      if (CloudClient.hasExplicitPublicCloudUrl()) {
+        try {
+          const data = await CloudClient.publicQrBootstrap(tableId);
+          if (!active) return;
+          setCloudTable(data.table);
+          setCloudBranch(data.branch);
+          setCloudCategories(data.categories || []);
+          setCloudMenuItems(data.menuItems || []);
+          setCloudVatRate(data.vatRate || 0.15);
+          setCloudError('');
+          setRemoteSource('cloud');
+          return;
+        } catch (error) {
+          if (await loadFromFirestore()) return;
+          if (!active) return;
+          setRemoteSource('local');
+          setCloudError(error instanceof Error ? error.message : 'Could not connect to the restaurant cloud server.');
+          return;
         }
-        setRemoteSource('local');
-        setCloudError(error instanceof Error ? error.message : 'Could not connect to the restaurant cloud server.');
-      })
-      .finally(() => {
-        if (active) setCloudLoading(false);
-      });
+      }
+
+      if (await loadFromFirestore()) return;
+      if (!active) return;
+      setRemoteSource('local');
+      setCloudError(
+        StorageService.isFirebaseConfigured()
+          ? 'This table is not available yet. Please scan the QR code on your table again.'
+          : 'The restaurant is not connected to the cloud yet. Please ask a staff member for help.'
+      );
+    };
+
+    bootstrap().finally(() => {
+      if (active) setCloudLoading(false);
+    });
+
     return () => {
       active = false;
     };
