@@ -203,11 +203,11 @@ const TabOrdering: React.FC<TabOrderingProps> = ({ lang, onChange }) => {
   };
 
   return (
-    <div className="grid h-screen max-h-screen min-h-0 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] overflow-hidden bg-[#F2F2F7] text-[#1C1C1E] xl:grid-cols-[380px_minmax(0,1fr)] xl:grid-rows-1">
+    <div className="grid h-full max-h-full min-h-0 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] overflow-hidden bg-[#F2F2F7] text-[#1C1C1E] lg:grid-cols-[340px_minmax(0,1fr)] lg:grid-rows-1 2xl:grid-cols-[380px_minmax(0,1fr)]">
       <aside className="flex h-full min-h-0 flex-col overflow-hidden border-r border-[#E5E5EA] bg-[#F5F5F7]">
         <div className="flex-shrink-0 p-4 pb-3">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--ios-accent)]">Staff Tablet Ordering</p>
-          <h1 className="mt-1 text-3xl font-black tracking-tight text-[#1C1C1E]">{txt(lang, 'Tablet Order Taking', 'أخذ الطلبات بالتابلت')}</h1>
+          <h1 className="mt-1 text-2xl font-black tracking-tight text-[#1C1C1E] 2xl:text-3xl">{txt(lang, 'Tablet Order Taking', 'أخذ الطلبات بالتابلت')}</h1>
           <p className="mt-1 text-sm font-semibold text-[#8E8E93]">{txt(lang, 'Waiters take table orders here and send them directly to the kitchen.', 'يأخذ النادل طلب الطاولة هنا ويرسله مباشرة إلى المطبخ.')}</p>
         </div>
 
@@ -336,14 +336,14 @@ const TabOrdering: React.FC<TabOrderingProps> = ({ lang, onChange }) => {
         </div>
       </aside>
 
-      <main className="flex h-full min-h-0 flex-col overflow-hidden p-5">
+      <main className="flex h-full min-h-0 flex-col overflow-hidden p-4 2xl:p-5">
         {selected ? (
           <>
-            <div className="mb-4 shrink-0 rounded-2xl bg-white p-5 shadow-[0px_4px_24px_rgba(0,0,0,0.03),0px_1px_2px_rgba(0,0,0,0.02)]">
+            <div className="mb-4 shrink-0 rounded-2xl bg-white p-4 shadow-[0px_4px_24px_rgba(0,0,0,0.03),0px_1px_2px_rgba(0,0,0,0.02)] 2xl:p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0">
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--ios-accent)]">{selected.status.replace(/_/g, ' ')}</p>
-                  <h2 className="truncate text-3xl font-black tracking-tight text-[#1C1C1E]">{selected.tabNumber} - {selected.guestName || txt(lang, 'Guest', 'ضيف')}</h2>
+                  <h2 className="truncate text-2xl font-black tracking-tight text-[#1C1C1E] 2xl:text-3xl">{selected.tabNumber} - {selected.guestName || txt(lang, 'Guest', 'ضيف')}</h2>
                   <p className="mt-1 text-sm font-semibold text-[#8E8E93]">{selectedTableLabel}</p>
                 </div>
                 <div className="rounded-2xl bg-[var(--ios-accent-soft)] px-4 py-3 text-right">
@@ -353,7 +353,7 @@ const TabOrdering: React.FC<TabOrderingProps> = ({ lang, onChange }) => {
               </div>
             </div>
 
-            <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(300px,0.75fr)]">
+            <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(300px,0.75fr)]">
               <section className="flex min-h-0 flex-col rounded-2xl bg-white shadow-[0px_4px_24px_rgba(0,0,0,0.03),0px_1px_2px_rgba(0,0,0,0.02)]">
                 <div className="shrink-0 border-b border-[#E5E5EA] px-5 py-4">
                   <h3 className="text-xl font-black text-[#1C1C1E]">{txt(lang, 'Active Order Items', 'أصناف الطلب الحالي')}</h3>

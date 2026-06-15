@@ -435,7 +435,7 @@ function StaffApp({ standaloneView }: { standaloneView: string | null }) {
   if (standaloneView === 'kitchen') {
     return (
       <ToastProvider>
-        <div className={`ios-app h-screen overflow-hidden bg-[var(--ios-bg)] ${lang === 'ar' ? 'font-arabic' : ''}`}>
+        <div className={`ios-app ios-shell overflow-hidden bg-[var(--ios-bg)] ${lang === 'ar' ? 'font-arabic' : ''}`}>
           <KitchenDisplay lang={lang} />
         </div>
       </ToastProvider>
@@ -445,7 +445,7 @@ function StaffApp({ standaloneView }: { standaloneView: string | null }) {
   if (standaloneView === 'tabs') {
     return (
       <ToastProvider>
-        <div className={`ios-app h-screen overflow-hidden bg-[var(--ios-bg)] ${lang === 'ar' ? 'font-arabic' : ''}`}>
+        <div className={`ios-app ios-shell overflow-hidden bg-[var(--ios-bg)] ${lang === 'ar' ? 'font-arabic' : ''}`}>
           <TabOrdering lang={lang} onChange={refreshData} />
         </div>
       </ToastProvider>
@@ -454,7 +454,7 @@ function StaffApp({ standaloneView }: { standaloneView: string | null }) {
 
   return (
     <ToastProvider>
-    <div className={`ios-app flex h-screen overflow-hidden ${lang === 'ar' ? 'font-arabic' : ''}`}>
+    <div className={`ios-app ios-shell flex overflow-hidden ${lang === 'ar' ? 'font-arabic' : ''}`}>
       {mobileSidebarOpen && (
         <button
           type="button"
@@ -465,7 +465,7 @@ function StaffApp({ standaloneView }: { standaloneView: string | null }) {
       )}
       {/* Sidebar Navigation */}
       <nav
-        className={`ios-sidebar-shell ${mobileSidebarOpen ? 'ios-sidebar-shell-open' : ''} relative z-30 flex h-screen max-h-screen w-[280px] flex-shrink-0 flex-col overflow-hidden border-r border-slate-200/80 bg-white shadow-[4px_0_24px_rgba(0,0,0,0.02)]`}
+          className={`ios-sidebar-shell ${mobileSidebarOpen ? 'ios-sidebar-shell-open' : ''} relative z-30 flex h-full max-h-full w-[280px] flex-shrink-0 flex-col overflow-hidden border-r border-slate-200/80 bg-white shadow-[4px_0_24px_rgba(0,0,0,0.02)]`}
       >
         <div className="flex-shrink-0 px-6 py-5">
           <div className="flex items-start gap-3">

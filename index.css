@@ -90,6 +90,7 @@
     background: var(--ios-bg);
     color: var(--ios-text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-width: 0;
   }
 
   .ios-page {
@@ -98,6 +99,18 @@
     background: var(--ios-bg);
     color: var(--ios-text);
     padding: clamp(16px, 3vw, 32px);
+  }
+
+  .ios-shell {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  @supports not (height: 100dvh) {
+    .ios-shell {
+      height: 100vh;
+    }
   }
 
   .ios-card {
@@ -635,9 +648,9 @@
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1180px) {
   .ios-app {
-    display: block;
+    min-width: 0;
   }
 
   .ios-mobile-menu-button,
@@ -703,6 +716,57 @@
 
   .ios-page {
     padding: 16px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1180px) {
+  .ios-header {
+    min-height: 56px;
+  }
+
+  .ios-page {
+    padding: clamp(16px, 2vw, 24px);
+  }
+}
+
+@media (min-width: 1181px) and (max-width: 1366px) {
+  .ios-sidebar-shell {
+    width: 248px !important;
+  }
+}
+
+@media (max-height: 820px) and (min-width: 1181px) {
+  .ios-sidebar-shell > div:first-child {
+    padding-top: 14px !important;
+    padding-bottom: 12px !important;
+  }
+
+  .ios-sidebar-shell [class*="space-y-6"] {
+    row-gap: 1rem;
+  }
+
+  .ios-sidebar-shell button {
+    min-height: 38px;
+  }
+
+  .ios-sidebar-shell .h-11 {
+    height: 38px !important;
+  }
+
+  .ios-sidebar-shell .h-8,
+  .ios-sidebar-shell .w-8 {
+    height: 30px !important;
+    width: 30px !important;
+  }
+
+  .ios-sidebar-shell .mt-4 {
+    margin-top: 0.65rem !important;
+  }
+}
+
+@media (max-height: 760px) {
+  .ios-page {
+    padding-block: 14px;
   }
 }
 

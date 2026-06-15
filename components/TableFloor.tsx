@@ -190,14 +190,14 @@ const TableFloor: React.FC<TableFloorProps> = ({ lang, onChange, onCheckout }) =
   }, {} as Record<TableState, number>);
 
   return (
-    <div className="h-full overflow-y-auto p-6">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className="h-full overflow-y-auto p-4 xl:p-6">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-600">FOH floor control</p>
-          <h1 className="text-3xl font-black text-slate-900">{text(lang, 'Tables and Floor Plan', 'الطاولات وخريطة الصالة')}</h1>
+          <h1 className="text-2xl font-black text-slate-900 xl:text-3xl">{text(lang, 'Tables and Floor Plan', 'الطاولات وخريطة الصالة')}</h1>
           <p className="mt-1 text-sm text-slate-500">{text(lang, 'Manage real-time table states for service, billing, and cleaning.', 'إدارة حالات الطاولات لحظياً للخدمة والفوترة والتنظيف.')}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
           <button onClick={() => setAreaId('all')} className={`rounded-2xl px-4 py-2 text-sm font-bold ${areaId === 'all' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600'}`}>
             {text(lang, 'All Areas', 'كل المناطق')}
           </button>
@@ -209,18 +209,18 @@ const TableFloor: React.FC<TableFloorProps> = ({ lang, onChange, onCheckout }) =
         </div>
       </div>
 
-      <div className="mb-6 grid gap-3 md:grid-cols-5">
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {(Object.keys(stateLabels) as TableState[]).map(state => (
-          <div key={state} className={`rounded-3xl border p-4 ${stateLabels[state].className}`}>
+          <div key={state} className={`rounded-3xl border p-3 xl:p-4 ${stateLabels[state].className}`}>
             <p className="text-xs font-black uppercase opacity-70">{text(lang, stateLabels[state].en, stateLabels[state].ar)}</p>
-            <p className="mt-2 text-3xl font-black">{counts[state]}</p>
+            <p className="mt-1 text-2xl font-black xl:mt-2 xl:text-3xl">{counts[state]}</p>
           </div>
         ))}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         {visibleTables.map(table => (
-          <div key={table.id} className={`rounded-[2rem] border p-5 shadow-sm ${stateLabels[table.state].className}`}>
+          <div key={table.id} className={`rounded-[2rem] border p-4 shadow-sm xl:p-5 ${stateLabels[table.state].className}`}>
             {(() => {
               const activeOrder = orderForTable(table);
               const paidOrder = activeOrder ? undefined : paidOrderForTable(table);
@@ -230,7 +230,7 @@ const TableFloor: React.FC<TableFloorProps> = ({ lang, onChange, onCheckout }) =
             <div className="mb-5 flex items-start justify-between">
               <div>
                 <p className="text-xs font-black uppercase opacity-70">{text(lang, 'Table', 'طاولة')}</p>
-                <h2 className="text-4xl font-black">{table.label}</h2>
+                <h2 className="text-3xl font-black xl:text-4xl">{table.label}</h2>
                 <p className="mt-2 inline-flex rounded-full bg-white/90 px-3 py-1 text-xs font-black text-slate-700">
                   {displayStatus}
                 </p>

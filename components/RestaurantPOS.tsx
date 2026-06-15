@@ -292,12 +292,12 @@ const RestaurantPOS: React.FC<RestaurantPOSProps> = ({ customers, lang, shiftOpe
   };
 
   return (
-    <div className="grid h-full max-h-full min-h-0 grid-cols-1 overflow-hidden bg-[#F2F2F7] text-[#1C1C1E] xl:grid-cols-[minmax(0,1fr)_400px]">
-      <section className="flex h-full min-h-0 flex-col overflow-hidden p-4 sm:p-5">
-        <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="grid h-full max-h-full min-h-0 grid-cols-1 overflow-hidden bg-[#F2F2F7] text-[#1C1C1E] lg:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
+      <section className="flex h-full min-h-0 flex-col overflow-hidden p-3 sm:p-4 2xl:p-5">
+        <div className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.22em] text-[#007AFF]">Oasis Dine RMS</p>
-            <h1 className="mt-1 text-4xl font-black tracking-tight text-slate-950">{localized(lang, 'Restaurant POS', 'نقطة بيع المطعم')}</h1>
+            <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 2xl:text-4xl">{localized(lang, 'Restaurant POS', 'نقطة بيع المطعم')}</h1>
             <p className="mt-2 max-w-2xl text-sm font-semibold text-slate-500">
               {localized(lang, 'Fast dine-in, takeaway, QR, and kitchen-fire ordering in one clean terminal.', 'طلبات سريعة داخل المطعم والاستلام وQR وإرسال المطبخ من شاشة واحدة.')}
             </p>
@@ -315,7 +315,7 @@ const RestaurantPOS: React.FC<RestaurantPOSProps> = ({ customers, lang, shiftOpe
           </div>
         </div>
 
-        <div className="mb-4 rounded-[20px] bg-white p-3 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+        <div className="mb-3 rounded-[20px] bg-white p-3 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
           <div className="relative rounded-xl bg-slate-100 transition-all duration-200 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#007AFF]/20">
             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -346,9 +346,9 @@ const RestaurantPOS: React.FC<RestaurantPOSProps> = ({ customers, lang, shiftOpe
           </div>
         </div>
 
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-black tracking-tight text-slate-950">{activeCategoryName}</h2>
+            <h2 className="text-xl font-black tracking-tight text-slate-950 2xl:text-2xl">{activeCategoryName}</h2>
             <p className="text-sm font-semibold text-slate-500">{filteredMenu.length} {localized(lang, 'items available', 'صنف متاح')}</p>
           </div>
           <span className="rounded-full bg-white px-4 py-2 text-xs font-black text-slate-500 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
@@ -356,7 +356,7 @@ const RestaurantPOS: React.FC<RestaurantPOSProps> = ({ customers, lang, shiftOpe
           </span>
         </div>
 
-        <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-4 overflow-y-auto pb-6 md:grid-cols-3 xl:grid-cols-4">
+        <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-3 overflow-y-auto pb-6 md:grid-cols-3 xl:grid-cols-4 2xl:gap-4">
           {filteredMenu.map(menuItem => {
             const sfda = getSfdaFlags(menuItem.nutrition);
             const added = items.some(item => item.menuItemId === menuItem.id);
@@ -373,15 +373,15 @@ const RestaurantPOS: React.FC<RestaurantPOSProps> = ({ customers, lang, shiftOpe
                   </span>
                 )}
                 {(menuItem.images?.[0] || menuItem.image) ? (
-                  <div className="h-32 overflow-hidden rounded-t-2xl bg-slate-100">
-                    <img src={menuItem.images?.[0] || menuItem.image} alt={localized(lang, menuItem.nameEn, menuItem.nameAr)} className="h-32 w-full object-cover transition duration-200 group-hover:scale-105" />
+                  <div className="h-28 overflow-hidden rounded-t-2xl bg-slate-100 2xl:h-32">
+                    <img src={menuItem.images?.[0] || menuItem.image} alt={localized(lang, menuItem.nameEn, menuItem.nameAr)} className="h-28 w-full object-cover transition duration-200 group-hover:scale-105 2xl:h-32" />
                   </div>
                 ) : (
-                  <div className="flex h-32 items-center justify-center rounded-t-2xl bg-slate-100 text-slate-400">
+                  <div className="flex h-28 items-center justify-center rounded-t-2xl bg-slate-100 text-slate-400 2xl:h-32">
                     <Utensils size={28} />
                   </div>
                 )}
-                <div className="p-3.5">
+                <div className="p-3 2xl:p-3.5">
                   <h3 className="mb-1 line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-tight tracking-tight text-slate-900">
                     {localized(lang, menuItem.nameEn, menuItem.nameAr)}
                   </h3>
@@ -402,18 +402,18 @@ const RestaurantPOS: React.FC<RestaurantPOSProps> = ({ customers, lang, shiftOpe
         </div>
       </section>
 
-      <aside className="fixed inset-x-0 bottom-0 z-20 max-h-[72vh] overflow-hidden rounded-t-[28px] border-t border-slate-200/60 bg-white/95 text-slate-950 shadow-[0_-12px_40px_rgba(0,0,0,0.08)] backdrop-blur-xl xl:static xl:flex xl:h-full xl:max-h-none xl:flex-col xl:rounded-none xl:border-l xl:border-slate-200/60 xl:border-t-0 xl:bg-white xl:shadow-[0_8px_32px_rgba(0,0,0,0.04)]">
-        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200/70 p-5">
+      <aside className="fixed inset-x-0 bottom-0 z-20 max-h-[72vh] overflow-hidden rounded-t-[28px] border-t border-slate-200/60 bg-white/95 text-slate-950 shadow-[0_-12px_40px_rgba(0,0,0,0.08)] backdrop-blur-xl lg:static lg:flex lg:h-full lg:max-h-none lg:flex-col lg:rounded-none lg:border-l lg:border-slate-200/60 lg:border-t-0 lg:bg-white lg:shadow-[0_8px_32px_rgba(0,0,0,0.04)]">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200/70 p-4 2xl:p-5">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-[#007AFF]">Live Ticket</p>
-            <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">{localized(lang, 'Active Check', 'الطلب الحالي')}</h2>
+            <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950 2xl:text-2xl">{localized(lang, 'Active Check', 'الطلب الحالي')}</h2>
           </div>
           <div className="rounded-2xl bg-blue-50 p-3 text-[#007AFF]">
             <ReceiptText size={22} />
           </div>
         </div>
 
-        <div className="shrink-0 space-y-3 border-b border-slate-200/70 p-5">
+        <div className="shrink-0 space-y-3 border-b border-slate-200/70 p-4 2xl:p-5">
           <div className="grid grid-cols-2 gap-3">
             <div className="ios-field">
               <label className="ios-label">{localized(lang, 'Table', 'الطاولة')}</label>
@@ -432,7 +432,7 @@ const RestaurantPOS: React.FC<RestaurantPOSProps> = ({ customers, lang, shiftOpe
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 2xl:px-5">
           {items.length === 0 && (
             <div className="my-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
               <Plus className="mx-auto mb-3 text-slate-300" size={34} />
@@ -463,7 +463,7 @@ const RestaurantPOS: React.FC<RestaurantPOSProps> = ({ customers, lang, shiftOpe
           ))}
         </div>
 
-        <div className="shrink-0 border-t border-slate-200/70 bg-white p-5 shadow-[0_-8px_28px_rgba(0,0,0,0.03)]">
+        <div className="shrink-0 border-t border-slate-200/70 bg-white p-4 shadow-[0_-8px_28px_rgba(0,0,0,0.03)] 2xl:p-5">
           <div className="mb-3 grid grid-cols-[1fr_110px] gap-3">
             <textarea value={note} onChange={event => setNote(event.target.value)} placeholder={localized(lang, 'Kitchen note', 'ملاحظة المطبخ')} className="ios-input h-16 resize-none" />
             <input type="number" min={0} value={discount} onChange={event => setDiscount(Number(event.target.value))} placeholder="Discount" className="ios-input" />
