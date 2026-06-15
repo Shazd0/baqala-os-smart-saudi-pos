@@ -1,0 +1,33 @@
+headersOrigin = "config"
+plugins = []
+redirects = []
+
+[functions]
+
+[functions."*"]
+
+[build]
+publish = "/Users/shahzad/Desktop/baqala-os---smart-saudi-pos/netlify-updates"
+publishOrigin = "config"
+commandOrigin = "ui"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[[headers]]
+for = "/updates/*"
+
+[headers.values]
+Cache-Control = "public, max-age=60"
+X-Content-Type-Options = "nosniff"
