@@ -39,3 +39,6 @@ LICENSE_KEYS.md
 # Python/test caches
 __pycache__/
 *.py[cod]
+
+# Local Netlify folder
+.netlify
