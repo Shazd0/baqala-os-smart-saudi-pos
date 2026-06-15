@@ -103,49 +103,83 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
   useEffect(() => {
     let active = true;
     setCloudLoading(true);
-    CloudClient.publicQrBootstrap(tableId)
-      .then(data => {
-        if (!active) return;
-        setCloudTable(data.table);
-        setCloudBranch(data.branch);
-        setCloudCategories(data.categories || []);
-        setCloudMenuItems(data.menuItems || []);
-        setCloudVatRate(data.vatRate || 0.15);
-        setCloudError('');
-        setRemoteSource('cloud');
-      })
-      .catch(async error => {
-        if (!active) return;
-        if (StorageService.isFirebaseConfigured()) {
-          try {
-            const [remoteTables, remoteBranches, remoteCategories, remoteItems] = await Promise.all([
-              FirebaseService.list<DiningTable>('tables'),
-              FirebaseService.list<RestaurantBranch>('branches'),
-              FirebaseService.list<MenuCategory>('menuCategories'),
-              FirebaseService.list<MenuItem>('menuItems'),
-            ]);
-            const remoteTable = remoteTables.find(item => item.id === tableId);
-            if (remoteTable) {
-              const remoteBranch = remoteBranches.find(item => item.id === remoteTable.branchId) || null;
-              setCloudTable(remoteTable);
-              setCloudBranch(remoteBranch);
-              setCloudCategories(remoteCategories.filter(item => item.active !== false));
-              setCloudMenuItems(remoteItems.filter(item => item.active !== false));
-              setCloudVatRate(0.15);
-              setCloudError('');
-              setRemoteSource('firestore');
-              return;
-            }
-          } catch {
-            // Fall through to local preview error below.
-          }
+
+    // A dedicated cloud/LAN server is only available when it is explicitly
+    // configured (Cloudflare tunnel / LAN API) or passed in the QR link as a
+    // `cloudUrl` query parameter. On a static host (e.g. Netlify) there is no
+    // such backend, so hitting it just returns 404 — we must skip it and read
+    // straight from Firestore instead.
+    const hasCloudServer = (() => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        return !!params.get('cloudUrl') || CloudClient.isConfigured();
+      } catch {
+        return CloudClient.isConfigured();
+      }
+    })();
+
+    const loadFromFirestore = async (): Promise<boolean> => {
+      if (!FirebaseService.isConfigured()) return false;
+      const [remoteTables, remoteBranches, remoteCategories, remoteItems] = await Promise.all([
+        FirebaseService.list<DiningTable>('tables'),
+        FirebaseService.list<RestaurantBranch>('branches'),
+        FirebaseService.list<MenuCategory>('menuCategories'),
+        FirebaseService.list<MenuItem>('menuItems'),
+      ]);
+      const remoteTable = remoteTables.find(item => item.id === tableId);
+      if (!remoteTable) return false;
+      if (!active) return true;
+      const remoteBranch = remoteBranches.find(item => item.id === remoteTable.branchId) || null;
+      setCloudTable(remoteTable);
+      setCloudBranch(remoteBranch);
+      setCloudCategories(remoteCategories.filter(item => item.active !== false));
+      setCloudMenuItems(remoteItems.filter(item => item.active !== false));
+      setCloudVatRate(0.15);
+      setCloudError('');
+      setRemoteSource('firestore');
+      return true;
+    };
+
+    const bootstrap = async () => {
+      // 1. Prefer a dedicated cloud/LAN server when one is actually configured.
+      if (hasCloudServer) {
+        try {
+          const data = await CloudClient.publicQrBootstrap(tableId);
+          if (!active) return;
+          setCloudTable(data.table);
+          setCloudBranch(data.branch);
+          setCloudCategories(data.categories || []);
+          setCloudMenuItems(data.menuItems || []);
+          setCloudVatRate(data.vatRate || 0.15);
+          setCloudError('');
+          setRemoteSource('cloud');
+          return;
+        } catch {
+          // Fall through to Firestore (the source of truth for the hosted app).
         }
+      }
+
+      // 2. Firestore is the source of truth for the hosted web app.
+      try {
+        if (await loadFromFirestore()) return;
+        if (!active) return;
         setRemoteSource('local');
-        setCloudError(error instanceof Error ? error.message : 'Could not connect to the restaurant cloud server.');
-      })
-      .finally(() => {
-        if (active) setCloudLoading(false);
-      });
+        setCloudError(
+          FirebaseService.isConfigured()
+            ? 'We could not find this table. Please scan the QR code on your table again.'
+            : 'Could not connect to the restaurant server. Please ask the staff for help.'
+        );
+      } catch (error) {
+        if (!active) return;
+        setRemoteSource('local');
+        setCloudError(error instanceof Error ? error.message : 'Could not connect to the restaurant server.');
+      }
+    };
+
+    bootstrap().finally(() => {
+      if (active) setCloudLoading(false);
+    });
+
     return () => {
       active = false;
     };
@@ -292,20 +326,27 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
         updatedAt: Date.now(),
         note: [`Guest: ${guestName.trim()}`, `Mobile: ${guestPhone.trim()}`, note.trim()].filter(Boolean).join(' / '),
       };
-      if (remoteSource === 'firestore' && StorageService.isFirebaseConfigured()) {
-        const saved: RestaurantOrder = {
-          ...order,
-          orderNumber: `OD-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Date.now()).slice(-4)}`,
-          updatedAt: Date.now(),
-        };
-        await FirebaseService.save('restaurantOrders', saved);
-        await FirebaseService.saveMany('kitchenTickets', kitchenTicketsForQrOrder(saved));
-        setSubmittedOrder(saved);
-        setCart([]);
-        setNote('');
-        setConfirmOpen(false);
-        setCartDrawerOpen(false);
-        toast(`Order ${saved.orderNumber} sent to kitchen.`, 'success');
+      if (remoteSource === 'firestore' && FirebaseService.isConfigured()) {
+        try {
+          const saved: RestaurantOrder = {
+            ...order,
+            orderNumber: `OD-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Date.now()).slice(-4)}`,
+            updatedAt: Date.now(),
+          };
+          await FirebaseService.save('restaurantOrders', saved);
+          await FirebaseService.saveMany('kitchenTickets', kitchenTicketsForQrOrder(saved));
+          setSubmittedOrder(saved);
+          setCart([]);
+          setNote('');
+          setConfirmOpen(false);
+          setCartDrawerOpen(false);
+          toast(`Order ${saved.orderNumber} sent to kitchen.`, 'success');
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Could not send your order. Please try again or ask the staff for help.';
+          setFormError(message);
+          setConfirmOpen(false);
+          toast(message, 'error');
+        }
         return;
       }
       const saved = StorageService.saveRestaurantOrder(order);
