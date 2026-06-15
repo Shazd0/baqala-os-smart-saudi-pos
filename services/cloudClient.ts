@@ -18,13 +18,31 @@ export function getCloudBaseUrl(config: CloudStorageConfig = StorageService.getC
   return cleanUrl(config.cloudflareTunnelUrl || config.lanApiUrl);
 }
 
-export function getPublicCloudBaseUrl(config: CloudStorageConfig = StorageService.getCloudStorageConfig()) {
+export function getExplicitPublicCloudBaseUrl(config: CloudStorageConfig = StorageService.getCloudStorageConfig()) {
   const params = new URLSearchParams(window.location.search);
   const queryUrl = params.get('cloudUrl');
   if (queryUrl) return cleanUrl(queryUrl);
   const configured = config.enabled ? getCloudBaseUrl(config) : '';
-  if (configured) return configured;
-  return cleanUrl(window.location.origin);
+  return configured ? cleanUrl(configured) : '';
+}
+
+export function getPublicCloudBaseUrl(config: CloudStorageConfig = StorageService.getCloudStorageConfig()) {
+  return getExplicitPublicCloudBaseUrl(config) || cleanUrl(window.location.origin);
+}
+
+export function buildCustomerQrUrl(tableId: string, config: CloudStorageConfig = StorageService.getCloudStorageConfig()) {
+  const appBaseUrl = import.meta.env.VITE_PUBLIC_APP_URL || `${window.location.origin}${window.location.pathname}`;
+  const url = new URL(appBaseUrl, window.location.origin);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('qrTable', tableId);
+
+  const cloudUrl = getExplicitPublicCloudBaseUrl(config);
+  if (cloudUrl && cleanUrl(url.origin) !== cloudUrl) {
+    url.searchParams.set('cloudUrl', cloudUrl);
+  }
+
+  return url.toString();
 }
 
 async function request<T>(path: string, options: RequestInit = {}, config = StorageService.getCloudStorageConfig()): Promise<T> {
