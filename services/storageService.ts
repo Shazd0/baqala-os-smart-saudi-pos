@@ -1014,8 +1014,10 @@ export const StorageService = {
 
   // --- CUSTOMERS ---
   getCustomers: (): Customer[] => requireBridgeOrPreview<Customer[]>('getCustomers', () => {
-    syncExistingCustomerCreditLinks();
-    persistPreviewStore();
+    if (shouldUseFirebase() || isTrialMode()) {
+      syncExistingCustomerCreditLinks();
+      persistPreviewStore();
+    }
     return previewStore.customers;
   }),
 
