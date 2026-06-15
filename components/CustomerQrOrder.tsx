@@ -5,11 +5,12 @@ import { StorageService } from '../services/storageService';
 import { calculateRestaurantOrderTotals } from '../services/restaurantService';
 import { CloudClient } from '../services/cloudClient';
 import { FirebaseService } from '../services/firebaseService';
+import { resolveQrTable } from '../services/publicQr';
 import ConfirmDialog from './ConfirmDialog';
 import { useToast } from './Toast';
 
 interface CustomerQrOrderProps {
-  tableId: string;
+  tableToken: string;
 }
 
 interface QrCartItem {
@@ -68,7 +69,7 @@ function kitchenTicketsForQrOrder(order: RestaurantOrder): KitchenTicket[] {
   }));
 }
 
-const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
+const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableToken }) => {
   const { toast } = useToast();
   const [tables, setTables] = useState<DiningTable[]>(() => StorageService.getTables());
   const [cloudTable, setCloudTable] = useState<DiningTable | null>(null);
@@ -79,7 +80,10 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
   const [cloudLoading, setCloudLoading] = useState(true);
   const [cloudError, setCloudError] = useState('');
   const [remoteSource, setRemoteSource] = useState<'cloud' | 'firestore' | 'local'>('local');
-  const table = cloudTable || tables.find(item => item.id === tableId);
+  const qrParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  const qrTableId = qrParams.get('qrId') || undefined;
+  const qrBranchId = qrParams.get('qrBranch') || undefined;
+  const table = cloudTable || resolveQrTable(tables, [qrTableId, tableToken], qrBranchId) || null;
   const branchId = table?.branchId || StorageService.getActiveBranchId();
   const branch = cloudBranch || StorageService.getBranches().find(item => item.id === branchId);
   const categories = cloudCategories.length ? cloudCategories : StorageService.getMenuCategories();
@@ -102,8 +106,9 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
 
   useEffect(() => {
     let active = true;
+    const bootstrapTableToken = qrTableId || tableToken;
     setCloudLoading(true);
-    CloudClient.publicQrBootstrap(tableId)
+    CloudClient.publicQrBootstrap(bootstrapTableToken)
       .then(data => {
         if (!active) return;
         setCloudTable(data.table);
@@ -124,7 +129,7 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
               FirebaseService.list<MenuCategory>('menuCategories'),
               FirebaseService.list<MenuItem>('menuItems'),
             ]);
-            const remoteTable = remoteTables.find(item => item.id === tableId);
+            const remoteTable = resolveQrTable(remoteTables, [qrTableId, tableToken], qrBranchId);
             if (remoteTable) {
               const remoteBranch = remoteBranches.find(item => item.id === remoteTable.branchId) || null;
               setCloudTable(remoteTable);
@@ -149,7 +154,7 @@ const CustomerQrOrder: React.FC<CustomerQrOrderProps> = ({ tableId }) => {
     return () => {
       active = false;
     };
-  }, [tableId]);
+  }, [qrBranchId, qrTableId, tableToken]);
 
   const orderItems = useMemo(() => asOrderItems(cart), [cart]);
   const totals = useMemo(() => calculateRestaurantOrderTotals(orderItems, 0, cloudVatRate || StorageService.getConfig().vatRate || 0.15), [orderItems, cloudVatRate]);

@@ -4,6 +4,7 @@ import { Armchair, Download, MapPin, Pencil, Plus, Save, Store, Table2, Trash2, 
 import { DiningTable, Language, RestaurantBranch } from '../types';
 import { StorageService } from '../services/storageService';
 import { getPublicCloudBaseUrl } from '../services/cloudClient';
+import { buildPublicQrUrl } from '../services/publicQr';
 import ConfirmDialog from './ConfirmDialog';
 
 interface RestaurantAdminProps {
@@ -44,11 +45,10 @@ const tableStatusClass = (state: string) => {
 };
 
 const qrUrlForTable = (table: DiningTable) => {
-  const cloudUrl = getPublicCloudBaseUrl();
-  const url = new URL(cloudUrl || window.location.href, window.location.origin);
-  url.search = '';
-  url.searchParams.set('qrTable', table.id);
-  return url.toString();
+  return buildPublicQrUrl(table, {
+    appUrl: window.location.href,
+    cloudUrl: getPublicCloudBaseUrl(),
+  });
 };
 
 const filenamePart = (value: string) => value
