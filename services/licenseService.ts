@@ -68,7 +68,8 @@ const SEEDED_LICENSES = new Map<string, string>([
 ]);
 
 function licenseApiBase() {
-  return String((import.meta as any).env?.VITE_LICENSE_API_URL || '').replace(/\/+$/, '');
+  const fromEnv = String((import.meta as any).env?.VITE_LICENSE_API_URL || '').replace(/\/+$/, '');
+  return fromEnv || 'https://baqala-license-api.gofixsa.workers.dev';
 }
 
 export function formatKey(raw: string): string {
