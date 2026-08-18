@@ -2,8 +2,17 @@ import React, { useMemo, useState } from 'react';
 import { AlertTriangle, BadgeCheck, LockKeyhole, Save, ShieldAlert, UserPlus } from 'lucide-react';
 import { BranchPermission, BranchStaffAssignment, Language, StaffMember, UserRole } from '../types';
 import { StorageService } from '../services/storageService';
-import { healthCardStatus } from '../services/restaurantService';
 import { useToast } from './Toast';
+
+function healthCardStatus(staff: StaffMember) {
+  const expiry = staff.healthCertificate?.expiresAt;
+  if (!expiry) return 'missing' as const;
+  const expiresAt = new Date(expiry).getTime();
+  const days = Math.ceil((expiresAt - Date.now()) / (24 * 60 * 60 * 1000));
+  if (days < 0) return 'expired' as const;
+  if (days <= 30) return 'expiring_soon' as const;
+  return 'valid' as const;
+}
 
 interface StaffComplianceProps {
   lang: Language;
@@ -17,15 +26,15 @@ type CredentialDraft = {
 
 const BRANCH_PERMISSIONS: Array<{ key: BranchPermission; en: string; ar: string }> = [
   { key: 'branch_pos', en: 'Can Use POS', ar: 'استخدام نقطة البيع' },
-  { key: 'branch_kds', en: 'Can Use Kitchen Display', ar: 'استخدام شاشة المطبخ' },
+  { key: 'branch_kds', en: 'Can Open Cash Drawer', ar: 'فتح درج النقد' },
   { key: 'branch_inventory', en: 'Can Manage Inventory', ar: 'إدارة المخزون' },
   { key: 'branch_purchases', en: 'Can Manage Purchases', ar: 'إدارة المشتريات' },
   { key: 'branch_staff', en: 'Can Manage Staff', ar: 'إدارة الموظفين' },
   { key: 'branch_reports', en: 'Can View Reports', ar: 'عرض التقارير' },
   { key: 'branch_refunds', en: 'Can Refund Invoices', ar: 'استرجاع الفواتير' },
-  { key: 'branch_voids', en: 'Can Void Orders', ar: 'إلغاء الطلبات' },
+  { key: 'branch_voids', en: 'Can Void Sales', ar: 'إلغاء المبيعات' },
   { key: 'branch_discounts', en: 'Can Apply Discounts', ar: 'تطبيق الخصومات' },
-  { key: 'branch_tabs', en: 'Can Manage Tabs', ar: 'إدارة التابات' },
+  { key: 'branch_tabs', en: 'Can Manage Credit Book', ar: 'إدارة دفتر الآجل' },
 ];
 
 function txt(lang: Language, en: string, ar: string) {
@@ -79,14 +88,10 @@ function roleTone(role: StaffMember['role']) {
   switch (role) {
     case 'cashier':
       return 'bg-blue-50 text-blue-700';
-    case 'chef':
-      return 'bg-orange-50 text-orange-700';
-    case 'waiter':
-      return 'bg-emerald-50 text-emerald-700';
-    case 'manager':
+    case 'supervisor':
       return 'bg-violet-50 text-violet-700';
-    case 'driver':
-      return 'bg-slate-100 text-slate-700';
+    case 'manager':
+      return 'bg-emerald-50 text-emerald-700';
     default:
       return 'bg-slate-100 text-slate-700';
   }
@@ -96,11 +101,17 @@ function userRoleForStaff(role: StaffMember['role']): UserRole {
   return role === 'manager' ? 'administrator' : 'cashier';
 }
 
+function roleBadge(role: string) {
+  if (role === 'manager') return 'bg-emerald-50 text-emerald-700';
+  if (role === 'supervisor') return 'bg-violet-50 text-violet-700';
+  return 'bg-slate-100 text-slate-700';
+}
+
 function sanitizePin(value: string) {
   return value.replace(/\D/g, '').slice(0, 6);
 }
 
-const inputClass = 'h-12 w-full rounded-xl border-[1.5px] border-transparent bg-[#E9E9EB] px-4 text-sm font-bold text-[#1C1C1E] outline-none transition-all duration-200 ease-out placeholder:text-[#8E8E93] focus:border-[#007AFF] focus:bg-white';
+const inputClass = 'h-12 w-full rounded-xl border-[1.5px] border-transparent bg-[#E9E9EB] px-4 text-sm font-bold text-[#1C1C1E] outline-none transition-all duration-200 ease-out placeholder:text-[#8E8E93] focus:border-[#1E6B48] focus:bg-white';
 
 const StaffCompliance: React.FC<StaffComplianceProps> = ({ lang }) => {
   const { toast } = useToast();
@@ -278,12 +289,12 @@ const StaffCompliance: React.FC<StaffComplianceProps> = ({ lang }) => {
   };
 
   return (
-    <div className="h-screen overflow-hidden bg-[#F2F2F7] text-[#1C1C1E]">
-      <div className="grid h-full grid-cols-1 gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_430px]">
-        <section className="flex h-full min-h-0 flex-col overflow-hidden">
+    <div className="h-full overflow-y-auto bg-[#F2F2F7] text-[#1C1C1E] xl:overflow-hidden">
+      <div className="grid grid-cols-1 gap-5 p-5 xl:h-full xl:grid-cols-[minmax(0,1fr)_430px]">
+        <section className="flex min-h-0 flex-col xl:h-full xl:overflow-hidden">
           <div className="mb-5 flex shrink-0 flex-col justify-between gap-4 lg:flex-row lg:items-end">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#007AFF]">Staff Directory</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#1E6B48]">Staff Directory</p>
               <h1 className="mt-2 text-4xl font-black tracking-tight text-[#1C1C1E]">{txt(lang, 'Staff Management', 'إدارة الموظفين')}</h1>
               <p className="mt-2 max-w-3xl text-sm font-semibold text-[#8E8E93]">
                 {txt(lang, 'Secure employee onboarding, terminal credentials, branch access, and compliance status.', 'إضافة الموظفين وبيانات الدخول وصلاحيات الفروع وحالة الامتثال.')}
@@ -292,7 +303,7 @@ const StaffCompliance: React.FC<StaffComplianceProps> = ({ lang }) => {
             <button
               type="button"
               onClick={resetForm}
-              className="h-11 rounded-xl bg-white px-4 text-sm font-black text-[#007AFF] shadow-[0_4px_24px_rgba(0,0,0,0.02)] transition-all duration-200 ease-out active:scale-[0.97]"
+              className="h-11 rounded-xl bg-white px-4 text-sm font-black text-[#1E6B48] shadow-[0_4px_24px_rgba(0,0,0,0.02)] transition-all duration-200 ease-out active:scale-[0.97]"
             >
               {txt(lang, 'New Staff', 'موظف جديد')}
             </button>
@@ -314,7 +325,16 @@ const StaffCompliance: React.FC<StaffComplianceProps> = ({ lang }) => {
             ))}
           </div>
 
-          <div className="grid h-full min-h-0 grid-cols-1 gap-4 overflow-y-auto pb-4 xl:grid-cols-2">
+          <div className="grid min-h-0 grid-cols-1 gap-4 pb-4 sm:grid-cols-2 xl:flex-1 xl:overflow-y-auto">
+            {staff.length === 0 && (
+              <div className="col-span-full rounded-2xl bg-white p-10 text-center shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+                <UserPlus size={34} className="mx-auto mb-3 text-[#1E6B48] opacity-40" />
+                <p className="font-black text-[#1C1C1E]">{txt(lang, 'No staff added yet', 'لا يوجد موظفون بعد')}</p>
+                <p className="mt-1 text-sm font-semibold text-[#8E8E93]">
+                  {txt(lang, 'Use the onboarding form to add your first cashier.', 'استخدم نموذج الإضافة لإضافة أول كاشير.')}
+                </p>
+              </div>
+            )}
             {staff.map(member => {
               const assignedBranches = (member.branchIds || []).map(id => branches.find(branch => branch.id === id)?.nameEn || id);
               return (
@@ -326,7 +346,7 @@ const StaffCompliance: React.FC<StaffComplianceProps> = ({ lang }) => {
                 >
                   <div className="mb-5 flex items-start justify-between gap-4">
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[rgba(0,122,255,0.10)] text-sm font-black text-[#007AFF]">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[rgba(30,107,72,0.10)] text-sm font-black text-[#1E6B48]">
                         {initials(member.nameEn)}
                       </div>
                       <div className="min-w-0">
@@ -353,13 +373,13 @@ const StaffCompliance: React.FC<StaffComplianceProps> = ({ lang }) => {
           </div>
         </section>
 
-        <aside className="h-full min-h-0 overflow-y-auto rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+        <aside className="min-h-0 rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_4px_24px_rgba(0,0,0,0.02)] sm:p-6 xl:h-full xl:overflow-y-auto">
           <div className="mb-6 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(0,122,255,0.10)] text-[#007AFF]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(30,107,72,0.10)] text-[#1E6B48]">
               <UserPlus size={24} />
             </div>
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#007AFF]">{txt(lang, 'Onboarding Console', 'وحدة الإضافة')}</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#1E6B48]">{txt(lang, 'Onboarding Console', 'وحدة الإضافة')}</p>
               <h2 className="text-2xl font-black tracking-tight text-[#1C1C1E]">{draft.id ? txt(lang, 'Edit Staff', 'تعديل موظف') : txt(lang, 'New Staff', 'موظف جديد')}</h2>
             </div>
           </div>
@@ -376,7 +396,7 @@ const StaffCompliance: React.FC<StaffComplianceProps> = ({ lang }) => {
             </div>
 
             <div className="rounded-2xl bg-[#F9FAFB] p-4">
-              <div className="mb-3 flex items-center gap-2 text-[#007AFF]">
+              <div className="mb-3 flex items-center gap-2 text-[#1E6B48]">
                 <LockKeyhole size={18} />
                 <p className="text-xs font-black uppercase tracking-wider">{txt(lang, 'Security Credentials', 'بيانات الدخول')}</p>
               </div>
@@ -403,7 +423,7 @@ const StaffCompliance: React.FC<StaffComplianceProps> = ({ lang }) => {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <select value={draft.role} onChange={event => setDraft({ ...draft, role: event.target.value as StaffMember['role'] })} className={inputClass}>
-                {['cashier', 'waiter', 'chef', 'manager', 'driver'].map(role => <option key={role} value={role}>{role}</option>)}
+                {['cashier', 'supervisor', 'manager'].map(role => <option key={role} value={role}>{role}</option>)}
               </select>
               <select value={assignmentDraft.branchId} onChange={event => setAssignmentDraft({ ...assignmentDraft, branchId: event.target.value })} className={inputClass}>
                 {branches.map(branch => <option key={branch.id} value={branch.id}>{txt(lang, branch.nameEn, branch.nameAr)}</option>)}
@@ -413,7 +433,7 @@ const StaffCompliance: React.FC<StaffComplianceProps> = ({ lang }) => {
               <input type="date" value={draft.healthCertificate?.expiresAt || ''} onChange={event => setDraft({ ...draft, healthCertificate: { ...(draft.healthCertificate || { id: '', staffMemberId: '', cardNumber: '', status: 'valid' }), expiresAt: event.target.value } })} className={inputClass} />
               <label className="flex h-12 items-center justify-between rounded-xl bg-[#E9E9EB] px-4 text-sm font-bold text-[#1C1C1E]">
                 {txt(lang, 'GOSI registered', 'مسجل في التأمينات')}
-                <input type="checkbox" checked={!!draft.gosiRegistered} onChange={event => setDraft({ ...draft, gosiRegistered: event.target.checked })} className="h-5 w-5 accent-[#007AFF]" />
+                <input type="checkbox" checked={!!draft.gosiRegistered} onChange={event => setDraft({ ...draft, gosiRegistered: event.target.checked })} className="h-5 w-5 accent-[#1E6B48]" />
               </label>
             </div>
 
@@ -427,14 +447,14 @@ const StaffCompliance: React.FC<StaffComplianceProps> = ({ lang }) => {
                       type="checkbox"
                       checked={checked}
                       onChange={event => togglePermission(permission.key, event.target.checked)}
-                      className="h-5 w-5 accent-[#007AFF]"
+                      className="h-5 w-5 accent-[#1E6B48]"
                     />
                   </label>
                 );
               })}
             </div>
 
-            <button type="submit" className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#007AFF] text-sm font-black text-white shadow-[0_12px_28px_rgba(0,122,255,0.20)] transition-all duration-200 ease-out active:scale-[0.97]">
+            <button type="submit" className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#1E6B48] text-sm font-black text-white shadow-[0_12px_28px_rgba(30,107,72,0.20)] transition-all duration-200 ease-out active:scale-[0.97]">
               <Save size={18} /> {txt(lang, 'Save Staff', 'حفظ الموظف')}
             </button>
           </form>

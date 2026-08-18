@@ -92,9 +92,9 @@ export function buildPurchaseVatReport(
   };
 }
 
-export function buildShiftReport(transactions: Transaction[], shift: Shift | null) {
+export function buildShiftReport(transactions: Transaction[], shift: Shift | null | undefined) {
   const shiftTransactions = shift
-    ? transactions.filter(tx => tx.timestamp >= shift.startTime && (!shift.endTime || tx.timestamp <= shift.endTime))
+    ? transactions.filter(tx => tx.timestamp >= shift.openedAt && (!shift.closedAt || tx.timestamp <= shift.closedAt))
     : transactions.filter(tx => isSameDay(tx.timestamp));
   const cash = shiftTransactions.filter(tx => tx.paymentMethod === 'cash').reduce((sum, tx) => sum + tx.total, 0);
   const card = shiftTransactions.filter(tx => tx.paymentMethod === 'card').reduce((sum, tx) => sum + tx.total, 0);
@@ -105,7 +105,7 @@ export function buildShiftReport(transactions: Transaction[], shift: Shift | nul
     card,
     credit,
     total: cash + card + credit,
-    expectedCash: shift ? shift.startCash + cash : cash,
-    variance: shift?.endCash !== undefined ? shift.endCash - (shift.startCash + cash) : undefined
+    expectedCash: shift ? shift.openingCash + cash : cash,
+    variance: shift?.closingCash !== undefined ? shift.closingCash - (shift.openingCash + cash) : undefined
   };
 }

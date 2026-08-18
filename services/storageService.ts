@@ -52,6 +52,49 @@ import { INITIAL_STORE_CONFIG } from '../constants';
 import { FirebaseService, type FirestoreCollection } from './firebaseService';
 import { getActivation } from './licenseService';
 import { createTrialMockStore } from './trialMockData';
+import {
+  INSECURE_HASH_PREFIX,
+  ZATCA_GENESIS_PIH,
+  computeInvoiceHash,
+  generateInvoiceUuid,
+  getOrCreateSigningKey,
+  isRealCryptoAvailable,
+  signInvoiceHash,
+} from './zatcaCrypto';
+
+function isElectron(): boolean {
+  return typeof window !== 'undefined' && typeof (window as any).electronAPI !== 'undefined';
+}
+
+async function loadFromSQLite(): Promise<void> {
+  if (!isElectron()) return;
+  try {
+    const all = await (window as any).electronAPI.readAll() as Record<string, unknown>;
+    const STORE_KEYS = Object.keys(defaultPreviewStore) as Array<keyof typeof defaultPreviewStore>;
+    STORE_KEYS.forEach(key => {
+      const val = all[`store.${key}`];
+      if (val !== null && val !== undefined) {
+        (previewStore as any)[key] = val;
+      }
+    });
+    if (all['store.activeBranchId']) previewStore.activeBranchId = all['store.activeBranchId'] as string;
+  } catch (err) {
+    console.warn('SQLite load failed, starting fresh', err);
+  }
+}
+
+async function persistToSQLite(): Promise<void> {
+  if (!isElectron()) return;
+  const entries: Record<string, string> = {};
+  const STORE_KEYS = Object.keys(defaultPreviewStore) as Array<keyof typeof defaultPreviewStore>;
+  STORE_KEYS.forEach(key => {
+    try {
+      entries[`store.${key}`] = JSON.stringify((previewStore as any)[key]);
+    } catch { /* skip non-serializable */ }
+  });
+  entries['store.activeBranchId'] = JSON.stringify(previewStore.activeBranchId);
+  await (window as any).electronAPI.writeBatch(entries);
+}
 
 const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   administrator: ['sell', 'refund', 'discount', 'manage_inventory', 'manage_customers', 'manage_expenses', 'manage_settings', 'manage_users', 'close_shift', 'backup_restore', 'zatca_admin'],
@@ -328,9 +371,9 @@ const DEFAULT_TABLES: DiningTable[] = Array.from({ length: 10 }, (_, index) => (
 
 const DEFAULT_RESTAURANT_GROUP: RestaurantGroup = {
   id: 'group-oasis',
-  nameEn: 'Oasis Dine Group',
-  nameAr: 'مجموعة أواسس داين',
-  cloudTenantId: 'oasis-local-tenant',
+  nameEn: 'Baqala OS Group',
+  nameAr: 'مجموعة بقالة',
+  cloudTenantId: 'baqala-local-tenant',
   createdAt: now(),
   updatedAt: now(),
 };
@@ -341,7 +384,7 @@ const DEFAULT_BRANCHES: RestaurantBranch[] = [
     groupId: DEFAULT_RESTAURANT_GROUP.id,
     nameEn: 'Main Branch',
     nameAr: 'الفرع الرئيسي',
-    serviceTypes: ['dine_in', 'takeaway', 'delivery', 'qr_order', 'kiosk'],
+    serviceTypes: [],
     operatingHours: [
       { day: 'sun', open: '09:00', close: '01:00' },
       { day: 'mon', open: '09:00', close: '01:00' },
@@ -483,6 +526,10 @@ type StoredPreviewUser = User & {
 
 function persistPreviewStore() {
   if (isTrialMode()) return;
+  if (isElectron()) {
+    void persistToSQLite();
+    return;
+  }
   if (!shouldUseFirebase()) {
     throw new Error('Firebase is required. Local browser storage is disabled for production.');
   }
@@ -497,7 +544,11 @@ function persistPreviewStore() {
   });
   writes.push(FirebaseService.save('storeConfig', { id: 'default', ...previewStore.config }));
   writes.push(FirebaseService.save('hardwareConfig', { id: 'default', ...previewStore.hardware }));
-  writes.push(FirebaseService.save('zatcaState', { id: 'default', ...previewStore.zatca }));
+  // Scrub all credentials and key material before syncing to Firestore.
+  // Private keys and API secrets must NEVER leave the device — they are only
+  // valid for the device that generated the CSR and have no value on other devices.
+  const { privateKeyPem: _pkp, complianceSecretKey: _csk, productionSecretKey: _psk, ...safezatca } = previewStore.zatca ?? {};
+  writes.push(FirebaseService.save('zatcaState', { id: 'default', ...safezatca }));
   writes.push(FirebaseService.save('cloudStorageConfig', { id: 'default', ...previewStore.cloudStorageConfig }));
   writes.push(FirebaseService.save('cloudSyncStatus', { id: 'default', ...previewStore.cloudSyncStatus }));
   writes.push(FirebaseService.save('appState', {
@@ -664,12 +715,160 @@ function deleteFromFirestore(collectionName: FirestoreCollection, id: string) {
   });
 }
 
+// ── ZATCA invoice hash chain ────────────────────────────────────────────────
+
+export const ZATCA_INVOICE_SIGNED_EVENT = 'baqala:zatca-invoice-signed';
+
+// `previewStore.transactions` is newest-first and may be re-ordered arbitrarily
+// after a Firestore sync, so the chain is always derived from the ICV
+// (invoiceSeqNum) rather than from array position.
+
+/** Chained transactions sorted oldest → newest by ICV. */
+function chainOrderedTransactions(): Transaction[] {
+  return (previewStore.transactions || [])
+    .filter(tx => Number.isFinite(Number(tx?.invoiceSeqNum)))
+    .slice()
+    .sort((a, b) => Number(a.invoiceSeqNum) - Number(b.invoiceSeqNum));
+}
+
+/** Next ICV and the best synchronously-known PIH for a new invoice. */
+function nextChainAnchor(): { invoiceSeqNum: number; previousInvoiceHash: string } {
+  const chained = chainOrderedTransactions();
+  const last = chained[chained.length - 1];
+  if (!last) return { invoiceSeqNum: 1, previousInvoiceHash: ZATCA_GENESIS_PIH };
+  return {
+    invoiceSeqNum: Number(last.invoiceSeqNum) + 1,
+    previousInvoiceHash: last.invoiceHash || ZATCA_GENESIS_PIH,
+  };
+}
+
+/**
+ * Resolves to the invoice hash of the newest invoice once its async signing has
+ * settled. This keeps back-to-back sales correctly chained even though the hash
+ * of invoice N is only known a tick after invoice N+1 may have been saved.
+ */
+let chainTail: Promise<string> | null = null;
+
+/** Lets an open receipt pick up the hash/signature that arrive a tick after the sale. */
+function emitZatcaInvoiceSigned(id: string) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(ZATCA_INVOICE_SIGNED_EVENT, { detail: { id } }));
+}
+
+function pendingZatcaStatus(): Transaction['zatcaStatus'] {
+  return previewStore.zatca?.mode === 'production' ? 'pending' : 'sandbox_pending';
+}
+
+function persistQuietly() {
+  try {
+    persistPreviewStore();
+  } catch (error) {
+    console.warn('ZATCA chain persistence failed', error);
+  }
+}
+
+/**
+ * Second (asynchronous) half of signing: computes the real SHA-256 invoice hash
+ * and the ECDSA signature, then patches the already-stored transaction in place.
+ * `saveTransaction` stays synchronous because of this split.
+ */
+function finalizeZatcaChain(transaction: Transaction, sellerVat: string, fallbackPih: string) {
+  const previous = chainTail ?? Promise.resolve(fallbackPih);
+
+  const settled = previous.then(async previousHash => {
+    const previousInvoiceHash = previousHash || ZATCA_GENESIS_PIH;
+    const invoiceHash = await computeInvoiceHash(transaction, sellerVat, previousInvoiceHash);
+    const signature = await signInvoiceHash(invoiceHash);
+    const cryptoAvailable = isRealCryptoAvailable();
+
+    const patch: Partial<Transaction> = {
+      previousInvoiceHash,
+      invoiceHash,
+      cryptographicSignature: signature ?? undefined,
+      zatcaStatus: signature ? pendingZatcaStatus() : 'failed',
+      zatcaError: signature
+        ? undefined
+        : cryptoAvailable
+          ? 'Local ECDSA signing failed on this device; invoice is hashed but unsigned.'
+          : 'crypto.subtle unavailable (insecure origin) — invoice hash is a non-cryptographic placeholder and it is unsigned.',
+    };
+
+    // Patch every live reference: the object handed back to the caller (used for
+    // the receipt) and whatever copy currently sits in the store.
+    const stored = (previewStore.transactions || []).find(tx => tx.id === transaction.id);
+    const targets = stored && stored !== transaction ? [transaction, stored] : [transaction];
+    targets.forEach(target => Object.assign(target, patch));
+
+    if (!previewStore.zatca?.publicKeyPem) {
+      const key = await getOrCreateSigningKey();
+      if (key) previewStore.zatca = { ...previewStore.zatca, publicKeyPem: key.publicKeyPem };
+    }
+
+    persistQuietly();
+    mirrorToFirestore('transactions', stored ?? transaction);
+    emitZatcaInvoiceSigned(transaction.id);
+    return invoiceHash;
+  });
+
+  // A failure must not stall the chain for the next invoice.
+  chainTail = settled.catch(() => fallbackPih);
+  void settled.catch(error => console.warn('ZATCA invoice signing failed', error));
+}
+
+/**
+ * Re-attempts local ECDSA signing for invoices that were hashed but never signed
+ * (e.g. the browser had no `crypto.subtle` at checkout time). The invoice hash is
+ * left untouched so the chain cannot be disturbed.
+ */
+async function resignQueuedInvoices(queued: Transaction[]) {
+  let changed = false;
+  for (const tx of queued) {
+    const signature = await signInvoiceHash(String(tx.invoiceHash));
+    if (!signature) continue;
+    tx.cryptographicSignature = signature;
+    tx.zatcaStatus = pendingZatcaStatus();
+    tx.zatcaError = undefined;
+    mirrorToFirestore('transactions', tx);
+    changed = true;
+  }
+  if (changed) persistQuietly();
+}
+
 export const StorageService = {
   isDesktopRuntime: () => false,
+
+  isElectron,
 
   isTrialMode,
 
   isFirebaseConfigured: () => shouldUseFirebase(),
+
+  loadFromSQLite,
+
+  getBackupSettings: async (): Promise<{ autoBackup: boolean; backupFolder: string; lastBackupAt?: number | null; lastBackupPath?: string | null }> => {
+    if (!isElectron()) return { autoBackup: false, backupFolder: '' };
+    return (window as any).electronAPI.getBackupSettings();
+  },
+
+  saveBackupSettings: async (settings: { autoBackup: boolean; backupFolder: string }): Promise<void> => {
+    if (!isElectron()) return;
+    return (window as any).electronAPI.saveBackupSettings(settings);
+  },
+
+  selectBackupFolder: async (): Promise<string | null> => {
+    if (!isElectron()) return null;
+    return (window as any).electronAPI.selectBackupFolder();
+  },
+
+  exportBackup: async (folderPath?: string): Promise<{ success: boolean; path?: string }> => {
+    if (!isElectron()) return { success: false };
+    return (window as any).electronAPI.exportBackup(folderPath);
+  },
+
+  importBackup: async (filePath?: string): Promise<{ success: boolean }> => {
+    if (!isElectron()) return { success: false };
+    return (window as any).electronAPI.importBackup(filePath);
+  },
 
   syncFirebaseData: async (): Promise<boolean> => {
     ensureTrialMockStore();
@@ -698,7 +897,11 @@ export const StorageService = {
       FirebaseService.list<CloudSyncStatus & { id: string }>('cloudSyncStatus'),
     ]);
     previewStore.hardware = { ...previewStore.hardware, ...(hardwareConfig.find(item => item.id === 'default') || hardwareConfig[0] || {}) };
-    previewStore.zatca = { ...previewStore.zatca, ...(zatcaState.find(item => item.id === 'default') || zatcaState[0] || {}) };
+    // Merge remote zatcaState but NEVER overwrite local key material with remote values
+    // (which are always scrubbed before upload). This preserves the device-local private key.
+    const remoteZatca = zatcaState.find(item => item.id === 'default') || zatcaState[0] || {};
+    const { privateKeyPem: _pkp2, complianceSecretKey: _csk2, productionSecretKey: _psk2, ...safeRemoteZatca } = remoteZatca as ZatcaState & { id: string };
+    previewStore.zatca = { ...safeRemoteZatca, ...previewStore.zatca };
     previewStore.cloudStorageConfig = { ...previewStore.cloudStorageConfig, ...(cloudStorageConfig.find(item => item.id === 'default') || cloudStorageConfig[0] || {}) };
     previewStore.cloudSyncStatus = { ...previewStore.cloudSyncStatus, ...(cloudSyncStatus.find(item => item.id === 'default') || cloudSyncStatus[0] || {}) };
     persistPreviewStore();
@@ -972,6 +1175,21 @@ export const StorageService = {
       mirrorToFirestore('transactions', saved);
       return saved;
     }
+
+    // ZATCA chain, synchronous part. Everything assignable without Web Crypto is
+    // set here so the caller gets a fully-identified invoice back immediately.
+    // These are always re-assigned (never preserved) because refunds are built by
+    // spreading the original transaction and would otherwise inherit its ICV/UUID.
+    const sellerVat = String(previewStore.config?.vatNumber || '');
+    const anchor = nextChainAnchor();
+    transaction.uuid = generateInvoiceUuid();
+    transaction.invoiceSeqNum = anchor.invoiceSeqNum;
+    transaction.previousInvoiceHash = anchor.previousInvoiceHash;
+    transaction.invoiceHash = undefined;
+    transaction.cryptographicSignature = undefined;
+    transaction.zatcaError = undefined;
+    transaction.zatcaStatus = 'pending';
+
     previewStore.transactions.unshift(transaction);
     for (const item of transaction.items || []) {
       if (item.id?.startsWith('misc-')) continue;
@@ -1007,6 +1225,8 @@ export const StorageService = {
     }
     persistPreviewStore();
     mirrorToFirestore('transactions', transaction);
+    // Hash + signature land a tick later and patch the stored record in place.
+    finalizeZatcaChain(transaction, sellerVat, anchor.previousInvoiceHash);
     return transaction;
   },
 
@@ -1058,23 +1278,26 @@ export const StorageService = {
   // --- SHIFTS ---
   getShifts: (): Shift[] => requireBridgeOrPreview<Shift[]>('getShifts', () => previewStore.shifts),
 
-  getCurrentShift: (): Shift | null => {
+  getCurrentShift: (): Shift | undefined => {
     const shifts = StorageService.getShifts();
-    return shifts.find(s => s.status === 'open') || null;
+    return shifts.find(s => s.status === 'open');
   },
 
-  openShift: (startCash: number, operator: string) => requireBridgeOrPreview<Shift>('openShift', () => {
-    const shift: Shift = { id: Date.now().toString(), startTime: Date.now(), startCash, salesTotal: 0, status: 'open', operator };
-    previewStore.shifts = [shift, ...previewStore.shifts.map(item => item.status === 'open' ? { ...item, status: 'closed' as const } : item)];
+  openShift: (shiftData: Omit<Shift, 'id' | 'status'>) => requireBridgeOrPreview<Shift>('openShift', () => {
+    const shift: Shift = { ...shiftData, id: Date.now().toString(), status: 'open' };
+    previewStore.shifts = [shift, ...previewStore.shifts.map(item => item.status === 'open' ? { ...item, status: 'closed' as const, closedAt: Date.now() } : item)];
     persistPreviewStore();
     return shift;
-  }, { startCash, operator }),
+  }, { shiftData, actor: actor() }),
 
-  closeShift: (id: string, endCash: number, salesTotal: number, expectedCash?: number) => requireBridgeOrPreview<Shift | undefined>('closeShift', () => {
-    previewStore.shifts = previewStore.shifts.map(shift => shift.id === id ? { ...shift, endTime: Date.now(), endCash, expectedCash: expectedCash ?? shift.startCash + salesTotal, variance: endCash - (expectedCash ?? shift.startCash + salesTotal), salesTotal, status: 'closed' } : shift);
+  closeShift: (id: string, closeData: Partial<Shift>) => requireBridgeOrPreview<Shift | null>('closeShift', () => {
+    const idx = (previewStore.shifts as Shift[]).findIndex(s => s.id === id);
+    if (idx < 0) return null;
+    const updated: Shift = { ...(previewStore.shifts as Shift[])[idx], ...closeData, status: 'closed' as const, closedAt: Date.now() };
+    (previewStore.shifts as Shift[])[idx] = updated;
     persistPreviewStore();
-    return previewStore.shifts.find(shift => shift.id === id);
-  }, { id, endCash, salesTotal, expectedCash: expectedCash ?? 0, actor: actor() }),
+    return updated;
+  }, { id, closeData, actor: actor() }),
 
   // --- HELD CARTS ---
   getHeldCarts: (): HeldCart[] => requireBridgeOrPreview<HeldCart[]>('getHeldCarts', () => previewStore.heldCarts),
@@ -1117,7 +1340,55 @@ export const StorageService = {
     return previewStore.auditLogs;
   }, { event, description, user }),
 
-  validateCryptographicChain: (): { valid: boolean; brokenIndex?: number } => requireBridgeOrPreview('validateCryptographicChain', () => ({ valid: true })),
+  /**
+   * Walks the stored invoices oldest → newest and checks two invariants:
+   *   1. ICV increments by exactly 1 — no gaps, no duplicates.
+   *   2. Each invoice's PIH equals the previous invoice's hash (genesis PIH at ICV 1).
+   * Invoices whose hash has not landed yet (async signing still in flight) are
+   * skipped for the PIH check instead of being reported as breaks.
+   * `brokenIndex` is the index within the ICV-ordered chain.
+   */
+  validateCryptographicChain: (): { valid: boolean; brokenIndex?: number } => requireBridgeOrPreview('validateCryptographicChain', () => {
+    const chain = chainOrderedTransactions();
+    let previousSeqNum: number | null = null;
+    let previousHash: string | null = null;
+
+    for (let index = 0; index < chain.length; index++) {
+      const tx = chain[index];
+      const seqNum = Number(tx.invoiceSeqNum);
+
+      if (previousSeqNum !== null && seqNum !== previousSeqNum + 1) {
+        return { valid: false, brokenIndex: index };
+      }
+
+      if (tx.invoiceHash) {
+        // At the start of the known chain there is nothing to compare against
+        // unless this really is invoice #1, which must carry the genesis PIH.
+        const expectedPih = previousHash ?? (seqNum === 1 ? ZATCA_GENESIS_PIH : null);
+        if (expectedPih !== null && (tx.previousInvoiceHash || '') !== expectedPih) {
+          return { valid: false, brokenIndex: index };
+        }
+      }
+
+      previousSeqNum = seqNum;
+      previousHash = tx.invoiceHash || null;
+    }
+
+    return { valid: true };
+  }),
+
+  /** Live counters for the compliance screen: how much of the chain is actually hashed/signed. */
+  getZatcaChainStats: (): { chained: number; signed: number; awaiting: number; currentIcv: number; latestHash?: string } => requireBridgeOrPreview('getZatcaChainStats', () => {
+    const chain = chainOrderedTransactions();
+    const hashed = chain.filter(tx => !!tx.invoiceHash);
+    return {
+      chained: chain.length,
+      signed: chain.filter(tx => !!tx.cryptographicSignature).length,
+      awaiting: chain.length - hashed.length,
+      currentIcv: chain.length ? Number(chain[chain.length - 1].invoiceSeqNum) : 0,
+      latestHash: hashed[hashed.length - 1]?.invoiceHash,
+    };
+  }),
 
   getZatcaState: (): ZatcaState => requireBridgeOrPreview<ZatcaState>('getZatcaState', () => previewStore.zatca),
 
@@ -1140,8 +1411,14 @@ export const StorageService = {
   }, { complianceCsid, actor: actor() }),
 
   retryZatcaQueue: () => requireBridgeOrPreview<{ queued: number; transactions: Transaction[] }>('retryZatcaQueue', () => {
-    const queued = previewStore.transactions.filter(tx => tx.zatcaStatus === 'pending' || tx.zatcaStatus === 'sandbox_pending' || tx.zatcaStatus === 'failed').length;
-    return { queued, transactions: previewStore.transactions };
+    const queue = previewStore.transactions.filter(tx => tx.zatcaStatus === 'pending' || tx.zatcaStatus === 'sandbox_pending' || tx.zatcaStatus === 'failed');
+    // The only thing that can genuinely be retried offline is local signing of an
+    // invoice that already has a real hash but no signature.
+    const resignable = queue.filter(tx =>
+      !!tx.invoiceHash && !tx.invoiceHash.startsWith(INSECURE_HASH_PREFIX) && !tx.cryptographicSignature
+    );
+    if (resignable.length) void resignQueuedInvoices(resignable);
+    return { queued: queue.length, transactions: previewStore.transactions };
   }, { actor: actor() }),
 
   markZatcaReported: (id: string, status: Transaction['zatcaStatus'] = 'sandbox_reported') => requireBridgeOrPreview<Transaction[]>('markZatcaReported', () => {
@@ -1292,7 +1569,7 @@ export const StorageService = {
     return all.filter(d => d.active && (!d.expiresAt || d.expiresAt > now));
   },
 
-  // ── Oasis Dine RMS domain collections ─────────────────────────────────────
+  // ── Baqala OS domain collections ──────────────────────────────────────────
   getMenuCategories: (): MenuCategory[] => {
     const bridged = bridge<MenuCategory[]>('getMenuCategories');
     return bridged?.length ? bridged : previewStore.menuCategories;

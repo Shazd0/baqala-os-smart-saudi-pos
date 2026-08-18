@@ -1,0 +1,8 @@
+name = "baqala-license-api"
+main = "src/index.js"
+compatibility_date = "2026-08-18"
+
+kv_namespaces = [
+  { binding = "LICENSES", id = "014947a1a3004a7391867c9896a5f393" },
+  { binding = "TRIALS",   id = "34be1e06cb704e90a5463c1e51cb7998" },
+]

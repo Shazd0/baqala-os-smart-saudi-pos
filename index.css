@@ -5,39 +5,39 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-arabic: Tajawal, -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Arial, sans-serif;
-  --color-primary-50: #eaf4ff;
-  --color-primary-100: #d6eaff;
-  --color-primary-500: #007aff;
-  --color-primary-600: #006ee6;
-  --color-primary-700: #005fc7;
-  --color-primary-900: #003f85;
+  --font-sans: Tajawal, "Segoe UI", Tahoma, sans-serif;
+  --font-arabic: Tajawal, "Segoe UI", Tahoma, sans-serif;
+  --color-primary-50: #e7eee9;
+  --color-primary-100: #cfe0d4;
+  --color-primary-500: #1e6b48;
+  --color-primary-600: #18583b;
+  --color-primary-700: #13462f;
+  --color-primary-900: #0c2d1e;
 }
 
 :root {
-  --ios-bg: #f2f2f7;
+  --ios-bg: #f3f5f2;
   --ios-card: #ffffff;
-  --ios-accent: #007aff;
-  --ios-accent-hover: #006ee6;
-  --ios-accent-soft: rgba(0, 122, 255, 0.1);
-  --ios-accent-shadow: 0 12px 30px rgba(0, 122, 255, 0.2);
-  --ios-blue: #007aff;
-  --ios-indigo: #5856d6;
-  --ios-purple: #af52de;
-  --ios-pink: #ff2d55;
-  --ios-orange: #ff9500;
-  --ios-green: #34c759;
-  --ios-red: #ff3b30;
-  --ios-teal: #30b0c7;
-  --ios-mint: #00c7be;
-  --ios-text: #1c1c1e;
-  --ios-secondary: #8e8e93;
-  --ios-tertiary: #c7c7cc;
-  --ios-fill: #e9e9eb;
-  --ios-divider: #e5e5ea;
-  --ios-success: #34c759;
-  --ios-danger: #ff3b30;
+  --ios-accent: #1e6b48;
+  --ios-accent-hover: #18583b;
+  --ios-accent-soft: rgba(30, 107, 72, 0.10);
+  --ios-accent-shadow: 0 12px 30px rgba(30, 107, 72, 0.18);
+  --ios-blue: #1e6b48;
+  --ios-indigo: #3d5c4a;
+  --ios-purple: #6b756f;
+  --ios-pink: #c2412d;
+  --ios-orange: #c4a35a;
+  --ios-green: #1e6b48;
+  --ios-red: #c2412d;
+  --ios-teal: #2f7a5a;
+  --ios-mint: #4a8f6c;
+  --ios-text: #1a211c;
+  --ios-secondary: #6b756f;
+  --ios-tertiary: #a3ada7;
+  --ios-fill: #e7eee9;
+  --ios-divider: #dce5df;
+  --ios-success: #1e6b48;
+  --ios-danger: #c2412d;
   --ios-shadow: 0px 4px 24px rgba(0, 0, 0, 0.03), 0px 1px 2px rgba(0, 0, 0, 0.02);
   --ios-control-shadow: 0 8px 24px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.26);
   --ios-control-highlight: 0 10px 28px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.38);
@@ -46,6 +46,15 @@
 }
 
 @layer base {
+  /* Hide scrollbars globally — scroll still works, the bar is just invisible. */
+  * {
+    scrollbar-width: none;        /* Firefox */
+    -ms-overflow-style: none;     /* IE / Edge legacy */
+  }
+  *::-webkit-scrollbar {
+    display: none;                /* Chrome / Safari / Electron */
+  }
+
   html,
   body,
   #root {
@@ -56,7 +65,7 @@
     margin: 0;
     background: var(--ios-bg);
     color: var(--ios-text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: Tajawal, "Segoe UI", Tahoma, sans-serif;
     line-height: 1.55;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
@@ -89,7 +98,17 @@
   .ios-app {
     background: var(--ios-bg);
     color: var(--ios-text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: Tajawal, "Segoe UI", Tahoma, sans-serif;
+  }
+
+  .baqala-bottom-tabs {
+    display: none;
+  }
+
+  .baqala-pos-cart-bar,
+  .baqala-pos-cart-sheet,
+  .baqala-pos-cart-backdrop {
+    display: none;
   }
 
   .ios-page {
@@ -161,10 +180,10 @@
   :where(button, [role="button"]):focus-visible,
   :where(input[type="button"], input[type="submit"], input[type="reset"]):focus-visible {
     outline: 0;
-    box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.16), 0 8px 28px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 0 0 4px rgba(30, 107, 72, 0.16), 0 8px 28px rgba(0, 0, 0, 0.06);
   }
 
-  .ios-semantic-blue { --semantic: var(--ios-blue); --semantic-soft: rgba(0, 122, 255, 0.10); }
+  .ios-semantic-blue { --semantic: var(--ios-blue); --semantic-soft: rgba(30, 107, 72, 0.10); }
   .ios-semantic-indigo { --semantic: var(--ios-indigo); --semantic-soft: rgba(88, 86, 214, 0.12); }
   .ios-semantic-purple { --semantic: var(--ios-purple); --semantic-soft: rgba(175, 82, 222, 0.12); }
   .ios-semantic-pink { --semantic: var(--ios-pink); --semantic-soft: rgba(255, 45, 85, 0.10); }
@@ -238,7 +257,7 @@
   .ios-input:focus {
     border-color: var(--ios-accent);
     background: #ffffff;
-    box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.08);
+    box-shadow: 0 0 0 4px rgba(30, 107, 72, 0.08);
   }
 
   .ios-field {
@@ -399,9 +418,9 @@
     top: 0;
     z-index: 20;
     border-bottom: 1px solid var(--ios-divider);
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    background: rgba(243, 245, 242, 0.88);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
   }
 
   .ios-mobile-menu-button {
@@ -497,7 +516,7 @@
   .ios-nav-button-active {
     background: var(--ios-accent-soft);
     color: var(--ios-accent);
-    box-shadow: inset 0 0 0 1px rgba(0, 122, 255, 0.08), 0 8px 24px rgba(0, 122, 255, 0.08);
+    box-shadow: inset 0 0 0 1px rgba(30, 107, 72, 0.08), 0 8px 24px rgba(30, 107, 72, 0.08);
   }
 
   .ios-nav-button-active :where(span, svg) {
@@ -630,7 +649,7 @@
   :where(input, select, textarea).rounded-xl:focus {
     border-color: var(--ios-accent) !important;
     background: #ffffff !important;
-    box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.08) !important;
+    box-shadow: 0 0 0 4px rgba(30, 107, 72, 0.08) !important;
     outline: none !important;
   }
 }
@@ -651,9 +670,10 @@
     inset-block: 0;
     inset-inline-start: 0;
     z-index: 30;
-    width: min(86vw, 292px) !important;
+    width: min(86vw, 272px) !important;
     transform: translateX(-104%);
-    transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 4px 0 32px rgba(0,0,0,0.10);
   }
 
   [dir="rtl"] .ios-sidebar-shell {
@@ -703,6 +723,95 @@
 
   .ios-page {
     padding: 16px;
+  }
+
+  .baqala-bottom-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    padding: 6px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--ios-divider);
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    z-index: 22;
+  }
+
+  .baqala-bottom-tab {
+    display: flex;
+    min-height: 52px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--ios-secondary);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .baqala-bottom-tab-active {
+    background: var(--ios-accent-soft);
+    color: var(--ios-accent);
+  }
+
+  .baqala-pos-cart-desktop {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 41;
+    display: flex !important;
+    width: 100% !important;
+    max-height: 82vh;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 24px 24px 0 0;
+    background: #ffffff;
+    box-shadow: 0 -12px 40px rgba(26, 33, 28, 0.12);
+    transform: translateY(110%);
+    transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .baqala-pos-cart-desktop.is-open {
+    transform: translateY(0);
+  }
+
+  .baqala-pos-cart-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 64px;
+    margin: 0 12px 8px;
+    padding: 10px 14px;
+    border-radius: 16px;
+    background: #ffffff;
+    border: 1px solid var(--ios-divider);
+    box-shadow: var(--ios-shadow);
+    z-index: 15;
+  }
+
+  .baqala-pos-cart-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgba(26, 33, 28, 0.28);
+  }
+
+  .baqala-pos-cart-sheet {
+    display: flex;
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 41;
+    max-height: 82vh;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 24px 24px 0 0;
+    background: #ffffff;
+    box-shadow: 0 -12px 40px rgba(26, 33, 28, 0.12);
   }
 }
 
@@ -762,6 +871,81 @@
   }
 }
 
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE HARDENING
+   Screens were authored desktop-first with fixed text-4xl/5xl
+   headings and wide tables. These rules scale them down and
+   stop horizontal overflow on phones/tablets.
+   ══════════════════════════════════════════════════════════ */
+
+/* Never allow the page itself to scroll sideways. */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Any wide data table becomes horizontally swipeable instead of
+   blowing out the layout. */
+.baqala-main-scroll table {
+  min-width: 100%;
+}
+
+@media (max-width: 1023px) {
+  /* Fluid display headings */
+  .baqala-main-scroll :where(h1).text-4xl,
+  .baqala-main-scroll :where(h1).text-5xl {
+    font-size: clamp(1.5rem, 5.2vw, 2rem);
+    line-height: 1.15;
+  }
+
+  .baqala-main-scroll :where(h2).text-4xl,
+  .baqala-main-scroll :where(h2).text-2xl {
+    font-size: clamp(1.15rem, 4.4vw, 1.5rem);
+    line-height: 1.2;
+  }
+
+  .baqala-main-scroll :where(h3).text-xl {
+    font-size: 1.0625rem;
+  }
+
+  /* Big metric numbers shrink so cards don't clip (the "SAR" cutoff). */
+  .baqala-main-scroll :where(h2, h3, h4, p).text-3xl,
+  .baqala-main-scroll :where(h2, h3, h4, p).text-4xl {
+    font-size: clamp(1.25rem, 4.8vw, 1.75rem);
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  /* Tables scroll rather than squash */
+  .baqala-main-scroll table {
+    min-width: 720px;
+  }
+
+  /* Two-column shells collapse */
+  .baqala-main-scroll .ios-page {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .baqala-main-scroll :where(h1).text-4xl,
+  .baqala-main-scroll :where(h1).text-5xl {
+    font-size: 1.5rem;
+  }
+
+  /* Cards get tighter padding so content isn't cramped by chrome. */
+  .baqala-main-scroll .ios-card,
+  .baqala-main-scroll .ios-card-compact {
+    border-radius: 14px;
+  }
+
+  /* Modals must never exceed the viewport or lose their action row. */
+  .baqala-main-scroll .fixed.inset-0 > div,
+  .fixed.inset-0 > div:not(.baqala-pos-cart-sheet) {
+    max-height: 92vh;
+  }
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -792,6 +976,11 @@
   100% { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes tabIn {
+  0%   { opacity: 0; transform: translateY(10px) scale(0.995); }
+  100% { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
 @keyframes iosSpin {
   to { transform: rotate(360deg); }
 }
@@ -814,6 +1003,10 @@
 
 .animate-shell-in {
   animation: shellIn 0.45s ease-out both;
+}
+
+.animate-tab-in {
+  animation: tabIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .animate-login-shake {
@@ -851,10 +1044,30 @@
 
 /* ── Sidebar nav glow on active ── */
 @keyframes navGlow {
-  0%, 100% { box-shadow: 0 0 10px 2px rgba(0, 122, 255, 0.12); }
-  50%       { box-shadow: 0 0 18px 4px rgba(0, 122, 255, 0.18); }
+  0%, 100% { box-shadow: 0 0 10px 2px rgba(30, 107, 72, 0.12); }
+  50%       { box-shadow: 0 0 18px 4px rgba(30, 107, 72, 0.18); }
 }
 .nav-active-glow { animation: navGlow 2.4s ease-in-out infinite; }
+
+/* ── Sidebar nav item ── */
+.nav-item {
+  position: relative;
+  /* Override the global button rule that adds box-shadow on all buttons */
+  box-shadow: none !important;
+  transition: background 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.nav-item:hover:not(:disabled) {
+  filter: none !important;
+  box-shadow: none !important;
+}
+.nav-item:active { transform: scale(0.96) !important; }
+.nav-item-active {
+  background: linear-gradient(135deg, #1e6b48 0%, #2f8a5f 100%) !important;
+  box-shadow: 0 6px 20px rgba(30, 107, 72, 0.22) !important;
+}
 
 /* ── Shimmer skeleton loader ── */
 @keyframes shimmer {
@@ -876,10 +1089,17 @@
   -webkit-backdrop-filter: blur(12px);
 }
 
-/* Premium iOS interaction contract. Kept unlayered so it normalizes legacy Tailwind buttons globally. */
-:where(button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"], a[href]) {
+/* Premium iOS interaction contract. Kept unlayered so it normalizes legacy Tailwind buttons globally.
+   Buttons that set an explicit Tailwind height (h-7..h-11) or .min-h-0 opt out of the 44px floor,
+   otherwise square icon buttons get stretched into tall washed-out pills. */
+:where(button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"], a[href]):not(
+  .min-h-0, .h-6, .h-7, .h-8, .h-9, .h-10, .h-11, .icon-btn
+) {
   min-height: 44px;
-  border-radius: 14px;
+}
+
+:where(button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"], a[href]) {
+  border-radius: 12px;
   font-weight: 700;
   letter-spacing: -0.01em;
   touch-action: manipulation;
@@ -888,6 +1108,42 @@
   transition: var(--ios-motion);
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Square icon button — real contrast, real edges, no stretching. */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-height: 0 !important;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  box-shadow: none !important;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.icon-btn:hover:not(:disabled) { filter: none !important; box-shadow: none !important; }
+.icon-btn:active:not(:disabled) { transform: scale(0.92); }
+
+.icon-btn-neutral {
+  background: #eef2f0;
+  border-color: #dce5df;
+  color: #2b3630;
+}
+.icon-btn-neutral:hover:not(:disabled) { background: #e2e9e5; border-color: #c9d6cf; }
+
+.icon-btn-danger {
+  background: #fdecea;
+  border-color: #f6cdc7;
+  color: #b3341f;
+}
+.icon-btn-danger:hover:not(:disabled) { background: #fbdcd7; border-color: #eeb3aa; }
+
+.icon-btn-accent {
+  background: var(--ios-accent-soft);
+  border-color: rgba(30, 107, 72, 0.22);
+  color: var(--ios-accent);
+}
+.icon-btn-accent:hover:not(:disabled) { background: rgba(30, 107, 72, 0.16); }
 
 :where(button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"]):not(:disabled),
 :where(a[href]) {
@@ -913,7 +1169,7 @@
 
 :where(button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"], a[href]):focus-visible {
   outline: 0;
-  box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.16), var(--ios-control-highlight);
+  box-shadow: 0 0 0 4px rgba(30, 107, 72, 0.16), var(--ios-control-highlight);
 }
 
 :where(

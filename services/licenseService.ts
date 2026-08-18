@@ -1,9 +1,10 @@
 export interface ActivationRecord {
   licenseId: string;
   activatedAt: number;
-  expiresAt?: number;   // undefined = perpetual
+  expiresAt?: number;
   plan: 'trial' | 'standard' | 'pro';
   machineId?: string;
+  storeName?: string;
 }
 
 interface SignedLeaseResponse {
@@ -12,6 +13,7 @@ interface SignedLeaseResponse {
 
 const APP_VERSION = '1.0.2';
 let inMemoryActivation: ActivationRecord | null = null;
+
 const SEEDED_LICENSES = new Map<string, string>([
   ['BQL-SA-0001', '8K4PR2XM7Q9D'], ['BQL-SA-0002', 'N6T9VK3AP4W8'],
   ['BQL-SA-0003', 'C7M2Q8ZDL5X9'], ['BQL-SA-0004', 'R9W5H3KPT6N2'],
@@ -74,32 +76,59 @@ export function formatKey(raw: string): string {
   return `${r.slice(0, 4)}-${r.slice(4, 8)}-${r.slice(8, 12)}`;
 }
 
+function electronAPI(): any { return (window as any).electronAPI; }
+const isElectron = () => !!(window as any).electronAPI?.loadLicense;
+
+async function getMachineIdSafe(): Promise<string> {
+  if (isElectron()) {
+    try { return await electronAPI().getMachineId(); } catch {}
+  }
+  return `browser-${navigator.userAgent.length}-${screen.width}x${screen.height}`;
+}
+
 function validateSeedLicense(licenseId: string, licenseKey: string) {
   const normalizedId = licenseId.toUpperCase().trim();
   const normalizedKey = licenseKey.replace(/-/g, '').toUpperCase().trim();
   return SEEDED_LICENSES.get(normalizedId) === normalizedKey;
 }
 
-function previewMachineId() {
-  return `browser-${navigator.userAgent.length}-${screen.width}x${screen.height}`;
-}
-
-function savePreviewActivation(record: ActivationRecord) {
+function saveActivationRecord(record: ActivationRecord): ActivationRecord {
   inMemoryActivation = record;
+  if (isElectron()) {
+    electronAPI().saveLicense(record).catch(() => {});
+  }
   return record;
 }
 
-function getPreviewActivation(): ActivationRecord | null {
-  const record = inMemoryActivation;
-  if (!record) return null;
+function checkExpiry(record: ActivationRecord): ActivationRecord | null {
   if (record.expiresAt && Date.now() > record.expiresAt) {
     inMemoryActivation = null;
+    if (isElectron()) electronAPI().clearLicense().catch(() => {});
     return null;
   }
   return record;
 }
 
-async function requestLease(endpoint: 'activate' | 'trial', body: Record<string, unknown>) {
+export async function initActivation(): Promise<ActivationRecord | null> {
+  if (inMemoryActivation) return checkExpiry(inMemoryActivation);
+  if (isElectron()) {
+    try {
+      const stored = await electronAPI().loadLicense();
+      if (stored && typeof stored === 'object') {
+        inMemoryActivation = stored as ActivationRecord;
+        return checkExpiry(inMemoryActivation);
+      }
+    } catch {}
+  }
+  return null;
+}
+
+export function getActivation(): ActivationRecord | null {
+  if (!inMemoryActivation) return null;
+  return checkExpiry(inMemoryActivation);
+}
+
+async function requestLease(endpoint: 'activate' | 'trial' | 'heartbeat', body: Record<string, unknown>) {
   const base = licenseApiBase();
   if (!base) {
     throw new Error('License activation server is not configured. Set VITE_LICENSE_API_URL for production builds.');
@@ -116,50 +145,31 @@ async function requestLease(endpoint: 'activate' | 'trial', body: Record<string,
   return data.lease;
 }
 
-export function getActivation(): ActivationRecord | null {
-  return getPreviewActivation();
-}
-
 export async function activateLicense(licenseId: string, licenseKey: string): Promise<ActivationRecord> {
   const normalizedId = licenseId.toUpperCase().trim();
   const normalizedKey = licenseKey.replace(/-/g, '').toUpperCase().trim();
-  const machineId = previewMachineId();
+  const machineId = await getMachineIdSafe();
 
   const base = licenseApiBase();
   if (base) {
-    const lease = await requestLease('activate', {
-      licenseId: normalizedId,
-      licenseKey: normalizedKey,
-      machineId,
-      appVersion: APP_VERSION,
-    });
-    return savePreviewActivation(lease as unknown as ActivationRecord);
+    const lease = await requestLease('activate', { licenseId: normalizedId, licenseKey: normalizedKey, machineId, appVersion: APP_VERSION });
+    return saveActivationRecord(lease as unknown as ActivationRecord);
   }
 
   if (!validateSeedLicense(normalizedId, normalizedKey)) {
-    throw new Error('Invalid License ID or License Key. Use one of the generated IDs and keys from LICENSE_KEYS.md.');
+    throw new Error('Invalid License ID or License Key.');
   }
-
-  return savePreviewActivation({
-    licenseId: normalizedId,
-    activatedAt: Date.now(),
-    plan: 'standard',
-    machineId,
-  });
+  return saveActivationRecord({ licenseId: normalizedId, activatedAt: Date.now(), plan: 'standard', machineId });
 }
 
 export async function startTrial(): Promise<ActivationRecord> {
-  const machineId = previewMachineId();
+  const machineId = await getMachineIdSafe();
   const base = licenseApiBase();
   if (base) {
-    const lease = await requestLease('trial', {
-      licenseId: `TRIAL-${machineId.slice(0, 12).toUpperCase()}`,
-      machineId,
-      appVersion: APP_VERSION,
-    });
-    return savePreviewActivation(lease as unknown as ActivationRecord);
+    const lease = await requestLease('trial', { machineId, appVersion: APP_VERSION });
+    return saveActivationRecord(lease as unknown as ActivationRecord);
   }
-  return savePreviewActivation({
+  return saveActivationRecord({
     licenseId: `TRIAL-${machineId.slice(0, 12).toUpperCase()}`,
     activatedAt: Date.now(),
     expiresAt: Date.now() + 14 * 86400000,
@@ -170,10 +180,11 @@ export async function startTrial(): Promise<ActivationRecord> {
 
 export function clearActivation(): void {
   inMemoryActivation = null;
+  if (isElectron()) electronAPI().clearLicense().catch(() => {});
 }
 
 export function isActivated(): boolean {
-  return !!getPreviewActivation();
+  return !!getActivation();
 }
 
 export function trialDaysLeft(record: ActivationRecord): number {

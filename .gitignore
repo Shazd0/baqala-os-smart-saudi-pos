@@ -24,6 +24,12 @@ netlify-updates
 
 # Local activation/license seed files
 LICENSE_KEYS.md
+LICENSE_KEYS.csv
+cf-worker/.wrangler/
+cf-worker/.dev.vars
+cf-worker/secrets.json
+cf-worker/seed-bulk.json
+dist-electron/
 
 # Editor directories and files
 .vscode/*

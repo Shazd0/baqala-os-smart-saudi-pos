@@ -1,20 +1,27 @@
 {
-  "name": "oasis-dine-rms",
+  "name": "baqala-os",
   "private": true,
   "version": "1.0.2",
-  "description": "Cloud-first restaurant management system and POS for Saudi Arabia.",
+  "description": "Cloud-first grocery POS for Saudi baqalas.",
+  "author": "Baqala OS",
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build:web": "vite build",
     "build": "npm run build:web",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "electron:dev": "concurrently --kill-others \"vite\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:build": "vite build && electron-builder",
+    "electron:preview": "vite build && electron .",
+    "electron:pack": "vite build && electron-builder --dir"
   },
   "dependencies": {
     "@fontsource/tajawal": "^5.2.7",
     "@tailwindcss/vite": "^4.3.0",
+    "electron-updater": "^6.8.9",
     "firebase": "^12.14.0",
     "lucide-react": "^0.555.0",
     "motion": "^12.40.0",
@@ -28,8 +35,12 @@
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^9.0.0",
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "wait-on": "^8.0.0"
   }
 }

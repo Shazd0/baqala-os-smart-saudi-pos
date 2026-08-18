@@ -273,17 +273,17 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, products, lang, dat
   };
 
   const IOS = {
-    blue: '#007AFF',
-    indigo: '#5856D6',
-    purple: '#AF52DE',
-    pink: '#FF2D55',
-    orange: '#FF9500',
-    green: '#34C759',
-    red: '#FF3B30',
-    teal: '#30B0C7',
-    mint: '#00C7BE',
-    text: '#1C1C1E',
-    secondary: '#8E8E93',
+    blue: '#1E6B48',
+    indigo: '#3D5C4A',
+    purple: '#6B756F',
+    pink: '#C2412D',
+    orange: '#C4A35A',
+    green: '#1E6B48',
+    red: '#C2412D',
+    teal: '#2F7A5A',
+    mint: '#4A8F6C',
+    text: '#1A211C',
+    secondary: '#6B756F',
   };
   const accent = IOS.blue;
   const cardStyle = {
@@ -310,48 +310,68 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, products, lang, dat
   ];
 
   return (
-    <div className="h-full overflow-y-auto bg-[#F2F2F7] p-4 pb-24 sm:p-6">
-      <div className="sticky top-0 z-20 -mx-4 mb-6 border-b border-white/70 bg-[#F2F2F7]/90 px-4 py-4 backdrop-blur-xl sm:-mx-6 sm:px-6">
+    <div className="h-full overflow-y-auto bg-[#F2F2F7] pb-24">
+      {/* Solid (not translucent) sticky header so scrolled card values can't bleed through it. */}
+      <div className="sticky top-0 z-30 border-b border-[#E4E7E3] bg-[#F2F2F7] px-4 py-4 sm:px-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="mb-2 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-bold text-[#8E8E93]" style={cardStyle}>
               <CalendarDays size={14} color={accent} /> {rangeLabel}
             </p>
-            <h1 className="text-4xl font-black tracking-tight text-[#1C1C1E] sm:text-5xl">{t.dashboard || 'Dashboard'}</h1>
-            <p className="mt-2 max-w-2xl text-sm font-semibold text-[#8E8E93]">Live financial overview for sales, purchases, expenses, VAT, shifts, and inventory risk.</p>
+            <h1 className="truncate text-2xl font-black tracking-tight text-[#1C1C1E] sm:text-3xl lg:text-4xl">{t.dashboard || 'Dashboard'}</h1>
+            <p className="mt-1.5 max-w-2xl text-xs font-semibold text-[#8E8E93] sm:text-sm">
+              {lang === 'ar'
+                ? 'نظرة مالية مباشرة على المبيعات والمشتريات والمصاريف والضريبة والمخزون.'
+                : 'Live financial overview for sales, purchases, expenses, VAT, and inventory risk.'}
+            </p>
           </div>
 
-          <div className="grid gap-2 md:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_auto_auto_auto]">
-            <label className="text-xs font-bold uppercase tracking-wide text-[#8E8E93]">
-              From
+          <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-[minmax(130px,1fr)_minmax(130px,1fr)_auto] xl:grid-cols-[minmax(140px,1fr)_minmax(140px,1fr)_auto_auto_auto]">
+            <label className="text-[10px] font-bold uppercase tracking-wide text-[#8E8E93]">
+              {lang === 'ar' ? 'من' : 'From'}
               <input
                 type="date"
                 value={fromDate}
                 onChange={event => setFromDate(event.target.value)}
-                className="mt-1 block min-h-[44px] w-full rounded-full border border-transparent bg-[#E9E9EB] px-4 py-3 text-sm font-bold text-[#1C1C1E] outline-none transition focus:border-[#007AFF] focus:bg-white"
+                className="mt-1 block h-11 w-full min-w-0 rounded-xl border border-transparent bg-white px-3 text-xs font-bold text-[#1C1C1E] shadow-sm outline-none transition focus:border-[#1E6B48]"
               />
             </label>
-            <label className="text-xs font-bold uppercase tracking-wide text-[#8E8E93]">
-              Till
+            <label className="text-[10px] font-bold uppercase tracking-wide text-[#8E8E93]">
+              {lang === 'ar' ? 'إلى' : 'Till'}
               <input
                 type="date"
                 value={toDate}
                 onChange={event => setToDate(event.target.value)}
-                className="mt-1 block min-h-[44px] w-full rounded-full border border-transparent bg-[#E9E9EB] px-4 py-3 text-sm font-bold text-[#1C1C1E] outline-none transition focus:border-[#007AFF] focus:bg-white"
+                className="mt-1 block h-11 w-full min-w-0 rounded-xl border border-transparent bg-white px-3 text-xs font-bold text-[#1C1C1E] shadow-sm outline-none transition focus:border-[#1E6B48]"
               />
             </label>
-            <button onClick={() => { setFromDate(localDateInput()); setToDate(localDateInput()); }} className="min-h-[44px] self-end rounded-full bg-white px-5 py-3 text-sm font-black text-[#1C1C1E]" style={cardStyle}>
-              Today
-            </button>
-            <button onClick={exportCSV} className="flex min-h-[44px] items-center justify-center gap-2 self-end rounded-full px-5 py-3 text-sm font-black" style={{ background: 'rgba(0,122,255,0.10)', color: accent }}>
-              <Download size={15} /> CSV
-            </button>
-            <button onClick={printZReport} className="flex min-h-[44px] items-center justify-center gap-2 self-end rounded-full px-5 py-3 text-sm font-black" style={{ background: 'rgba(0,122,255,0.10)', color: accent }}>
-              <FileText size={15} /> {t.zReport}
-            </button>
+            <div className="col-span-2 flex gap-2 sm:col-span-1 sm:self-end xl:contents">
+              <button
+                onClick={() => { setFromDate(localDateInput()); setToDate(localDateInput()); }}
+                className="h-11 min-h-0 flex-1 rounded-xl bg-white px-4 text-xs font-black text-[#1C1C1E] shadow-sm sm:flex-none xl:self-end"
+              >
+                {lang === 'ar' ? 'اليوم' : 'Today'}
+              </button>
+              <button
+                onClick={exportCSV}
+                className="flex h-11 min-h-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-4 text-xs font-black sm:flex-none xl:self-end"
+                style={{ background: 'rgba(30,107,72,0.10)', color: accent }}
+              >
+                <Download size={14} /> CSV
+              </button>
+              <button
+                onClick={printZReport}
+                className="flex h-11 min-h-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-4 text-xs font-black sm:flex-none xl:self-end"
+                style={{ background: 'rgba(30,107,72,0.10)', color: accent }}
+              >
+                <FileText size={14} /> {t.zReport}
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      <div className="px-4 pt-5 sm:px-6">
 
       <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {topCards.map(card => {
@@ -399,7 +419,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, products, lang, dat
               <h3 className="text-xl font-black text-[#1C1C1E]">Sales, Purchases & Expenses Weekly Graph</h3>
               <p className="text-sm font-semibold text-[#8E8E93]">Current week graph</p>
             </div>
-            <span className="rounded-full px-3 py-2 text-xs font-black" style={{ background: 'rgba(0,122,255,0.10)', color: accent }}>{weekLabel}</span>
+            <span className="rounded-full px-3 py-2 text-xs font-black" style={{ background: 'rgba(30,107,72,0.10)', color: accent }}>{weekLabel}</span>
           </div>
           <ResponsiveContainer width="100%" height={260}>
             <AreaChart data={stats.trendData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
@@ -504,7 +524,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, products, lang, dat
               <span className="text-sm font-semibold text-[#8E8E93]">Input VAT</span>
               <span className="font-bold text-[#1C1C1E]">{formatMoney(stats.purchaseVatReport.totalInputVat)}</span>
             </div>
-            <div className="flex items-center justify-between rounded-xl px-3 py-3" style={{ background: 'rgba(0,122,255,0.10)' }}>
+            <div className="flex items-center justify-between rounded-xl px-3 py-3" style={{ background: 'rgba(30,107,72,0.10)' }}>
               <span className="text-sm font-black text-[#1C1C1E]">Net VAT Due</span>
               <span className="text-lg font-black" style={{ color: IOS.indigo }}>
                 {formatMoney(stats.purchaseVatReport.netVatPosition)}
@@ -559,9 +579,9 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, products, lang, dat
               const expired = new Date(product.expiryDate!).getTime() < Date.now();
               return (
                 <div key={product.id} className={`rounded-xl p-3 text-sm ${expired ? 'bg-[#FFECEA]' : 'bg-[#FFF4E5]'}`}>
-                  <p className="truncate font-black text-[#1C1C1E]">Expiry Alerts: {product.nameEn}</p>
+                  <p className="truncate font-black text-[#1C1C1E]">{lang === 'ar' ? product.nameAr || product.nameEn : product.nameEn}</p>
                   <p className={`mt-0.5 text-xs font-bold ${expired ? 'text-[#FF3B30]' : 'text-[#C2410C]'}`}>
-                    {expired ? 'EXPIRED' : product.expiryDate}
+                    {expired ? (lang === 'ar' ? 'منتهي' : 'EXPIRED') : product.expiryDate}
                   </p>
                 </div>
               );
@@ -569,6 +589,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, products, lang, dat
           </div>
         </div>
       )}
+      </div>
 
       {listPanel && (
         <div className="fixed inset-0 z-[80] bg-slate-950/65 backdrop-blur-sm flex items-center justify-center p-4">

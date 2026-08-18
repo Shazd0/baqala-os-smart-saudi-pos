@@ -3,12 +3,24 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Product, CartItem, Language, Category, Customer, HeldCart, Transaction, StoreConfig } from '../types';
 import { TRANSLATIONS } from '../constants';
 import { StorageService } from '../services/storageService';
-import { calculateSaleTotals } from '../services/pricing';
+import { calculateSaleTotals, roundMoney } from '../services/pricing';
 import { firstError, positiveNumber, requiredText } from '../services/validationService';
-import { Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, ScanBarcode, User, PauseCircle, Percent, History, RotateCcw, Check, X, Keyboard, StickyNote, Box, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, ScanBarcode, User, PauseCircle, Percent, History, RotateCcw, Check, X, Keyboard, StickyNote, Box, AlertTriangle, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ConfirmDialog from './ConfirmDialog';
+import CameraScanner from './CameraScanner';
 import { useToast } from './Toast';
+
+const CATEGORY_LABELS: Record<string, { en: string; ar: string }> = {
+  [Category.DAIRY]:     { en: 'Dairy',     ar: 'ألبان' },
+  [Category.BAKERY]:    { en: 'Bakery',    ar: 'مخبوزات' },
+  [Category.BEVERAGES]: { en: 'Beverages', ar: 'مشروبات' },
+  [Category.SNACKS]:    { en: 'Snacks',    ar: 'وجبات خفيفة' },
+  [Category.PRODUCE]:   { en: 'Produce',   ar: 'خضار وفواكه' },
+  [Category.HOUSEHOLD]: { en: 'Household', ar: 'منزلية' },
+  [Category.TOBACCO]:   { en: 'Tobacco',   ar: 'تبغ' },
+  [Category.MISC]:      { en: 'Misc',      ar: 'متنوع' },
+};
 
 interface POSProps {
   products: Product[];
@@ -49,6 +61,8 @@ const POS: React.FC<POSProps> = ({ products, customers, lang, onCheckout, shiftO
     danger?: boolean;
     onConfirm: () => void;
   } | null>(null);
+  const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const [showCameraScanner, setShowCameraScanner] = useState(false);
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -259,6 +273,19 @@ const POS: React.FC<POSProps> = ({ products, customers, lang, onCheckout, shiftO
     }
   };
 
+  // Camera scans keep the sheet open so the cashier can scan a whole basket.
+  const handleCameraScan = (barcode: string) => {
+    const product = products.find(p => p.barcode === barcode);
+    if (product) {
+      addToCart(product);
+    } else {
+      toast(
+        lang === 'ar' ? `باركود غير معروف: ${barcode}` : `Unknown barcode: ${barcode}`,
+        'warning'
+      );
+    }
+  };
+
   const handleHoldCart = () => {
     if (cart.length === 0) return;
     const hold: HeldCart = {
@@ -315,8 +342,14 @@ const POS: React.FC<POSProps> = ({ products, customers, lang, onCheckout, shiftO
           status: 'refunded'
         };
         StorageService.saveTransaction(refundTx);
-        setRecentTransactions(StorageService.getTransactions().slice(0, 20));
         setConfirmDialog(null);
+        // Restore stock quantities
+        refundTx.items.forEach(item => {
+          if (item.category !== 'Misc') {
+            StorageService.adjustStock({ productId: item.id, quantityDelta: item.quantity, reason: 'return', note: `Refund ${refundTx.id}` });
+          }
+        });
+        setRecentTransactions(StorageService.getTransactions().slice(0, 20));
         toast(lang === 'ar' ? 'تم الاسترجاع بنجاح' : 'Refund processed successfully', 'success');
       }
     });
@@ -373,6 +406,9 @@ const POS: React.FC<POSProps> = ({ products, customers, lang, onCheckout, shiftO
         setSelectedCustomer(null);
         setCheckoutModal({ show: false, method: null });
         setConfirmDialog(null);
+        setMobileCartOpen(false);
+        // Refresh transaction history
+        setRecentTransactions(StorageService.getTransactions().slice(0, 20));
       }
     });
   };
@@ -396,33 +432,45 @@ const POS: React.FC<POSProps> = ({ products, customers, lang, onCheckout, shiftO
   });
 
   const { subtotal, vat, selectiveTaxAmount, total } = calculateTotals();
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  // Pre-discount gross, used to bound the discount input and the % shortcuts.
+  const cartGross = roundMoney(cart.reduce((sum, item) => sum + item.price * item.quantity, 0));
 
   return (
-    <div className="flex h-full flex-col md:flex-row bg-gray-100">
+    <div className="flex h-full flex-col bg-[var(--ios-bg)] md:flex-row">
       {/* LEFT SIDE: Products */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         
         {/* Top Bar */}
-        <div className="bg-white p-4 shadow-sm z-10">
-          <div className="flex gap-4 mb-4">
-            <form onSubmit={handleBarcodeSubmit} className="flex-1 relative">
+        <div className="bg-white p-3 shadow-sm z-10 sm:p-4">
+          <div className="mb-3 flex flex-col gap-2 sm:mb-4 sm:flex-row sm:gap-4">
+            <form onSubmit={handleBarcodeSubmit} className="relative flex-1">
               <input 
                  ref={barcodeInputRef}
                  autoFocus
-                 className="w-full pl-12 pr-4 py-3 bg-gray-100 border-none rounded-xl focus:ring-2 focus:ring-primary-500 transition-all text-gray-900"
+                 className={`w-full rounded-xl border-none bg-gray-100 py-3 text-gray-900 transition-all focus:ring-2 focus:ring-primary-500 ${lang === 'ar' ? 'pr-12 pl-12' : 'pl-12 pr-12'}`}
                  placeholder={t.scanBarcode}
               />
-              <ScanBarcode className={`absolute ${lang === 'ar' ? 'right-4' : 'left-4'} top-3.5 text-gray-500`} />
+              <ScanBarcode className={`absolute top-3.5 text-gray-500 ${lang === 'ar' ? 'right-4' : 'left-4'}`} />
+              <button
+                type="button"
+                onClick={() => setShowCameraScanner(true)}
+                className={`icon-btn icon-btn-accent absolute top-1.5 h-9 w-9 ${lang === 'ar' ? 'left-2' : 'right-2'}`}
+                title={lang === 'ar' ? 'مسح بالكاميرا' : 'Scan with camera'}
+                aria-label={lang === 'ar' ? 'مسح بالكاميرا' : 'Scan with camera'}
+              >
+                <Camera size={16} />
+              </button>
             </form>
             <div className="relative flex-1">
                <input 
                   ref={searchInputRef}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-100 border-none rounded-xl focus:ring-2 focus:ring-primary-500 transition-all text-gray-900"
+                  className={`w-full rounded-xl border-none bg-gray-100 py-3 text-gray-900 transition-all focus:ring-2 focus:ring-primary-500 ${lang === 'ar' ? 'pr-10 pl-4' : 'pl-10 pr-4'}`}
                   placeholder={`${t.search} (F3)`}
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                />
-               <Search className={`absolute ${lang === 'ar' ? 'right-3' : 'left-3'} top-3.5 text-gray-400`} size={20} />
+               <Search className={`absolute top-3.5 text-gray-400 ${lang === 'ar' ? 'right-3' : 'left-3'}`} size={20} />
             </div>
           </div>
           
@@ -430,19 +478,19 @@ const POS: React.FC<POSProps> = ({ products, customers, lang, onCheckout, shiftO
           <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
             <button 
               onClick={() => setSelectedCategory('All')}
-              className={`px-4 py-2 rounded-lg whitespace-nowrap text-sm font-medium transition-colors
-                ${selectedCategory === 'All' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              className={`h-9 min-h-0 shrink-0 rounded-lg px-4 text-sm font-semibold whitespace-nowrap transition-colors
+                ${selectedCategory === 'All' ? 'bg-[#1E6B48] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
             >
-              All
+              {lang === 'ar' ? 'الكل' : 'All'}
             </button>
             {Object.values(Category).map(cat => (
               <button 
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-lg whitespace-nowrap text-sm font-medium transition-colors
-                  ${selectedCategory === cat ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={`h-9 min-h-0 shrink-0 rounded-lg px-4 text-sm font-semibold whitespace-nowrap transition-colors
+                  ${selectedCategory === cat ? 'bg-[#1E6B48] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
-                {cat}
+                {CATEGORY_LABELS[cat]?.[lang] || cat}
               </button>
             ))}
           </div>
@@ -450,7 +498,7 @@ const POS: React.FC<POSProps> = ({ products, customers, lang, onCheckout, shiftO
 
         {/* Product Grid */}
         <div className="flex-1 overflow-y-auto p-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-20">
+          <div className="grid grid-cols-2 gap-3 pb-24 md:grid-cols-3 md:pb-6 lg:grid-cols-4 xl:grid-cols-5">
             {/* Custom Item Button */}
             <button 
                 onClick={() => setShowCustomItemModal(true)}
@@ -462,6 +510,15 @@ const POS: React.FC<POSProps> = ({ products, customers, lang, onCheckout, shiftO
                 <h3 className="font-bold text-primary-800 text-sm">{t.miscItem}</h3>
             </button>
 
+            {filteredProducts.length === 0 && searchTerm && (
+              <div className="col-span-full flex flex-col items-center justify-center py-12 text-center text-gray-400">
+                <Box size={40} className="mb-3 opacity-20" />
+                <p className="text-sm font-semibold">
+                  {lang === 'ar' ? `لا توجد نتائج لـ "${searchTerm}"` : `No products match "${searchTerm}"`}
+                </p>
+                <p className="mt-1 text-xs">{lang === 'ar' ? 'جرب رقم الباركود أو اسم آخر' : 'Try the barcode or a different name'}</p>
+              </div>
+            )}
             {filteredProducts.map(product => {
               const threshold = config?.lowStockThreshold ?? 5;
               const isOutOfStock = product.stock <= 0;
@@ -526,13 +583,28 @@ const POS: React.FC<POSProps> = ({ products, customers, lang, onCheckout, shiftO
         </div>
       </div>
 
+      {mobileCartOpen && (
+        <button type="button" className="baqala-pos-cart-backdrop" aria-label={lang === 'ar' ? 'إغلاق السلة' : 'Close cart'} onClick={() => setMobileCartOpen(false)} />
+      )}
+
+      <button type="button" className="baqala-pos-cart-bar" onClick={() => setMobileCartOpen(true)}>
+        <span className="flex items-center gap-2 font-bold text-[var(--ios-text)]">
+          <ShoppingCart size={18} />
+          {cartCount} {lang === 'ar' ? 'صنف' : 'items'}
+        </span>
+        <span className="text-lg font-extrabold text-[var(--ios-accent)]">{total.toFixed(2)} {t.currency}</span>
+      </button>
+
       {/* RIGHT SIDE: Cart */}
-      <div className="w-full md:w-[400px] bg-white shadow-xl z-20 flex flex-col h-full border-l border-gray-200">
+      <div className={`baqala-pos-cart-desktop flex h-full w-full flex-col bg-white z-20 border-s border-[var(--ios-divider)] md:w-[400px] ${mobileCartOpen ? 'is-open' : ''}`}>
         
         {/* Customer & Actions */}
         <div className="p-4 border-b bg-gray-50">
            <div className="flex justify-between items-center mb-3">
               <div className="flex gap-2">
+                 <button type="button" onClick={() => setMobileCartOpen(false)} className="baqala-pos-cart-close p-2 bg-white border border-gray-300 rounded-lg md:hidden" aria-label={lang === 'ar' ? 'إغلاق' : 'Close'}>
+                    <X size={20} />
+                 </button>
                  <button onClick={() => setShowHeldModal(true)} className="p-2 bg-white border border-gray-300 rounded-lg hover:bg-orange-50 text-orange-600 relative" title={t.holdCart}>
                     <PauseCircle size={20} />
                     {heldCarts.length > 0 && <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />}
@@ -629,21 +701,49 @@ const POS: React.FC<POSProps> = ({ products, customers, lang, onCheckout, shiftO
             </div>
             <div className="flex justify-between items-center">
                <span className="flex items-center gap-1"><Percent size={14} /> {t.discount}</span>
-               <div className="flex items-center gap-2">
-                 {/* Quick discount buttons */}
-                 <button onClick={() => setDiscount(subtotal * 0.05)} className="text-[10px] bg-gray-200 px-1 rounded hover:bg-gray-300 text-gray-800">5%</button>
-                 <button onClick={() => setDiscount(subtotal * 0.10)} className="text-[10px] bg-gray-200 px-1 rounded hover:bg-gray-300 text-gray-800">10%</button>
+               <div className="flex items-center gap-1.5">
+                 {/* Quick discount buttons — percentage of the cart gross */}
+                 <button
+                   type="button"
+                   onClick={() => setDiscount(roundMoney(cartGross * 0.05))}
+                   className="h-7 min-h-0 rounded-md bg-gray-200 px-2 text-[11px] font-bold text-gray-700 hover:bg-gray-300"
+                 >5%</button>
+                 <button
+                   type="button"
+                   onClick={() => setDiscount(roundMoney(cartGross * 0.10))}
+                   className="h-7 min-h-0 rounded-md bg-gray-200 px-2 text-[11px] font-bold text-gray-700 hover:bg-gray-300"
+                 >10%</button>
+                 {discount > 0 && (
+                   <button
+                     type="button"
+                     onClick={() => setDiscount(0)}
+                     className="h-7 min-h-0 rounded-md bg-red-100 px-2 text-[11px] font-bold text-red-600 hover:bg-red-200"
+                   >{lang === 'ar' ? 'مسح' : 'Clear'}</button>
+                 )}
                  <input 
-                    type="number" 
+                    type="number"
+                    min={0}
+                    max={cartGross}
+                    step="0.25"
                     className="w-20 text-end border-b bg-transparent focus:outline-none text-red-600 font-bold" 
-                    value={discount} 
-                    onChange={e => setDiscount(parseFloat(e.target.value) || 0)}
+                    value={discount || ''}
+                    onChange={e => {
+                      const raw = parseFloat(e.target.value);
+                      // Clamp so a discount can never exceed the cart or go negative.
+                      setDiscount(Number.isFinite(raw) ? Math.min(Math.max(raw, 0), cartGross) : 0);
+                    }}
                  />
                </div>
             </div>
+            {selectiveTaxAmount > 0 && (
+              <div className="flex justify-between">
+                <span>{lang === 'ar' ? 'الضريبة الانتقائية' : 'Selective tax'}</span>
+                <span>{selectiveTaxAmount.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span>{t.vat}</span>
-              <span>{(total - (subtotal - discount)).toFixed(2)}</span>
+              <span>{vat.toFixed(2)}</span>
             </div>
           </div>
           
@@ -726,7 +826,7 @@ const POS: React.FC<POSProps> = ({ products, customers, lang, onCheckout, shiftO
                   className="w-full border p-2 rounded text-gray-900" 
                   value={note} 
                   onChange={e => setNote(e.target.value)} 
-                  placeholder="Order special instructions..."
+                  placeholder={lang === 'ar' ? 'ملاحظة على الفاتورة...' : 'Receipt note...'}
                />
                <div className="flex gap-2 mt-4">
                   <button onClick={() => setShowNoteModal(false)} className="flex-1 py-2 bg-gray-100 text-gray-800 rounded">{t.save}</button>
@@ -740,48 +840,68 @@ const POS: React.FC<POSProps> = ({ products, customers, lang, onCheckout, shiftO
          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
                <div className="bg-gray-900 p-4 text-white flex justify-between items-center">
-                  <h3 className="font-bold text-lg flex items-center gap-2">
+                  <h3 className="font-bold text-base flex items-center gap-2 sm:text-lg">
                      {checkoutModal.method === 'cash' ? <Banknote /> : checkoutModal.method === 'card' ? <CreditCard /> : <User />}
-                     Confirm {checkoutModal.method?.toUpperCase()} Payment
+                     {lang === 'ar'
+                       ? `تأكيد الدفع ${checkoutModal.method === 'cash' ? 'نقداً' : checkoutModal.method === 'card' ? 'بالبطاقة' : 'آجل'}`
+                       : `Confirm ${checkoutModal.method === 'cash' ? 'Cash' : checkoutModal.method === 'card' ? 'Card' : 'Credit'} Payment`}
                   </h3>
-                  <button onClick={() => setCheckoutModal({show: false, method: null})} className="hover:bg-gray-700 p-1 rounded"><X size={20}/></button>
+                  <button onClick={() => setCheckoutModal({show: false, method: null})} className="icon-btn h-9 w-9 bg-white/15 text-white"><X size={18}/></button>
                </div>
                
-               <div className="p-6">
-                  <div className="text-center mb-6">
+               <div className="p-5 sm:p-6">
+                  <div className="text-center mb-5 sm:mb-6">
                      <p className="text-gray-500 text-sm mb-1">{t.totalWithVat}</p>
-                     <div className="text-5xl font-bold text-gray-900">{total.toFixed(2)} <span className="text-lg text-gray-400">{t.currency}</span></div>
+                     <div className="text-4xl font-bold text-gray-900 sm:text-5xl">{total.toFixed(2)} <span className="text-lg text-gray-400">{t.currency}</span></div>
                   </div>
 
                   {checkoutModal.method === 'cash' && (
                      <div className="space-y-4">
                         <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                           <label className="block text-sm font-semibold text-gray-700 mb-2">Amount Tendered</label>
+                           <label className="block text-sm font-semibold text-gray-700 mb-2">
+                             {lang === 'ar' ? 'المبلغ المستلم' : 'Amount Tendered'}
+                           </label>
                            <input 
-                              type="number" 
+                              type="number"
+                              inputMode="decimal"
+                              min={0}
+                              step="0.05"
                               autoFocus
                               className="w-full text-3xl font-bold bg-white border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-green-500 focus:outline-none text-gray-900"
                               placeholder="0.00"
                               value={amountTendered || ''}
-                              onChange={e => setAmountTendered(parseFloat(e.target.value))}
+                              onChange={e => {
+                                const raw = parseFloat(e.target.value);
+                                setAmountTendered(Number.isFinite(raw) ? raw : 0);
+                              }}
                            />
                         </div>
                         
                         <div className="grid grid-cols-4 gap-2">
                            {[10, 50, 100, 500].map(val => (
                               <button 
-                                 key={val} 
+                                 key={val}
+                                 type="button"
                                  onClick={() => setAmountTendered(val)}
-                                 className="py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-bold text-gray-700 transition-colors"
+                                 className="h-10 min-h-0 rounded-lg bg-gray-100 font-bold text-gray-700 transition-colors hover:bg-gray-200"
                               >
                                  {val}
                               </button>
                            ))}
                         </div>
+                        <button
+                           type="button"
+                           onClick={() => setAmountTendered(roundMoney(total))}
+                           className="h-10 min-h-0 w-full rounded-lg bg-[var(--ios-accent-soft)] text-sm font-bold text-[#1E6B48]"
+                        >
+                           {lang === 'ar' ? 'المبلغ بالضبط' : 'Exact amount'}
+                        </button>
 
                         {amountTendered > 0 && (
                            <div className={`text-center p-3 rounded-xl font-bold text-lg border ${amountTendered >= total ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                              {amountTendered >= total ? `Change Due: ${(amountTendered - total).toFixed(2)}` : `Remaining: ${(total - amountTendered).toFixed(2)}`}
+                              {amountTendered >= total
+                                ? `${lang === 'ar' ? 'الباقي' : 'Change Due'}: ${(amountTendered - total).toFixed(2)}`
+                                : `${lang === 'ar' ? 'المتبقي' : 'Remaining'}: ${(total - amountTendered).toFixed(2)}`}
                            </div>
                         )}
                      </div>
@@ -794,33 +914,38 @@ const POS: React.FC<POSProps> = ({ products, customers, lang, onCheckout, shiftO
                               <CreditCard className="text-blue-800" size={32} />
                            </div>
                            <p className="text-sm font-bold text-blue-800">
-                              External Card Terminal Approval Required
+                              {lang === 'ar' ? 'يتطلب موافقة جهاز الشبكة/البطاقة' : 'External Card Terminal Approval Required'}
                            </p>
                            <p className="text-xs mt-1 text-blue-700">
-                              Complete payment on the external mada/card terminal, then enter the approval, RRN, or reference number below.
+                              {lang === 'ar'
+                                ? 'أكمل الدفع على جهاز مدى، ثم أدخل رقم الموافقة أو المرجع بالأسفل.'
+                                : 'Complete payment on the external mada/card terminal, then enter the approval, RRN, or reference number below.'}
                            </p>
                         </div>
                         <div>
-                           <label className="block text-sm font-medium text-gray-700 mb-1">Approval / Reference Number</label>
+                           <label className="block text-sm font-medium text-gray-700 mb-1">
+                             {lang === 'ar' ? 'رقم الموافقة / المرجع' : 'Approval / Reference Number'}
+                           </label>
                            <input
                               autoFocus
                               className="w-full border rounded-xl p-3 font-mono text-gray-900"
                               value={paymentApprovalReference}
                               onChange={e => setPaymentApprovalReference(e.target.value)}
-                              placeholder="e.g. 123456 / RRN / auth code"
+                              placeholder={lang === 'ar' ? 'مثال: 123456 / RRN' : 'e.g. 123456 / RRN / auth code'}
                            />
                         </div>
                      </div>
                   )}
 
                   <button
+                     type="button"
                      onClick={() => processPayment()}
-                     className={`w-full mt-6 py-4 rounded-2xl text-white font-bold text-lg flex items-center justify-center gap-2 shadow-xl btn-spring
+                     className={`w-full mt-6 py-4 rounded-2xl text-white font-bold text-base sm:text-lg flex items-center justify-center gap-2 shadow-xl btn-spring
                         ${checkoutModal.method === 'cash' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30' :
                           checkoutModal.method === 'card' ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/30' : 'bg-orange-600 hover:bg-orange-700 shadow-orange-600/30'}`}
                   >
-                     <Check size={24} />
-                     Confirm & Print
+                     <Check size={22} />
+                     {lang === 'ar' ? 'تأكيد وطباعة' : 'Confirm & Print'}
                   </button>
                </div>
             </div>
@@ -836,13 +961,17 @@ const POS: React.FC<POSProps> = ({ products, customers, lang, onCheckout, shiftO
                <button onClick={() => setShowHeldModal(false)}><X size={20}/></button>
             </div>
             <div className="p-4 overflow-y-auto flex-1 space-y-3">
-              {heldCarts.length === 0 ? <p className="text-center text-gray-500 py-4">No held carts.</p> : heldCarts.map(h => (
-                <div key={h.id} className="border p-3 rounded-lg flex justify-between items-center bg-gray-50 hover:bg-white transition-colors">
-                  <div>
-                    <div className="font-bold text-gray-800">{h.customerName}</div>
-                    <div className="text-xs text-gray-500">{new Date(h.timestamp).toLocaleTimeString()} - {h.items.length} items</div>
+              {heldCarts.length === 0 ? (
+                <p className="text-center text-gray-500 py-6">{lang === 'ar' ? 'لا توجد سلات معلقة.' : 'No held carts.'}</p>
+              ) : heldCarts.map(h => (
+                <div key={h.id} className="border p-3 rounded-lg flex justify-between items-center gap-3 bg-gray-50 hover:bg-white transition-colors">
+                  <div className="min-w-0">
+                    <div className="truncate font-bold text-gray-800">{h.customerName}</div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(h.timestamp).toLocaleTimeString()} · {h.items.length} {lang === 'ar' ? 'صنف' : 'items'}
+                    </div>
                   </div>
-                  <button onClick={() => handleRecallCart(h)} className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">{t.recallCart}</button>
+                  <button onClick={() => handleRecallCart(h)} className="h-9 min-h-0 shrink-0 rounded-lg bg-[#1E6B48] px-3 text-sm font-bold text-white">{t.recallCart}</button>
                 </div>
               ))}
             </div>
@@ -876,8 +1005,8 @@ const POS: React.FC<POSProps> = ({ products, customers, lang, onCheckout, shiftO
                               <td className="p-3 text-end font-bold text-gray-900">{tx.total.toFixed(2)}</td>
                               <td className="p-3 text-center">
                                  {!tx.isRefund && (
-                                    <button onClick={() => handleRefund(tx)} className="text-red-500 hover:bg-red-50 p-1 rounded" title="Refund">
-                                       <RotateCcw size={16} />
+                                    <button onClick={() => handleRefund(tx)} className="icon-btn icon-btn-danger h-8 w-8" title={t.refund} aria-label={t.refund}>
+                                       <RotateCcw size={15} />
                                     </button>
                                  )}
                               </td>
@@ -888,6 +1017,13 @@ const POS: React.FC<POSProps> = ({ products, customers, lang, onCheckout, shiftO
                </div>
             </div>
          </div>
+      )}
+      {showCameraScanner && (
+        <CameraScanner
+          lang={lang}
+          onDetected={handleCameraScan}
+          onClose={() => setShowCameraScanner(false)}
+        />
       )}
       <ConfirmDialog
         open={!!confirmDialog}

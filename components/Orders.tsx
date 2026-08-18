@@ -17,7 +17,10 @@ interface OrdersProps {
 type Preset = 'today' | 'week' | 'month';
 
 function dateInputValue(date: Date) {
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 function startOfDay(date: Date) {
@@ -41,7 +44,7 @@ function branchScopeForUser(user: User) {
   return user.primaryBranchId || user.branchIds?.[0] || '';
 }
 
-const controlClass = 'h-11 rounded-xl border-0 bg-slate-100 px-4 text-sm font-bold text-[#1C1C1E] outline-none transition-all duration-200 ease-out focus:bg-white focus:shadow-[0_0_0_1.5px_#007AFF] active:scale-[0.97]';
+const controlClass = 'h-11 rounded-xl border-0 bg-slate-100 px-4 text-sm font-bold text-[#1C1C1E] outline-none transition-all duration-200 ease-out focus:bg-white focus:shadow-[0_0_0_1.5px_#1E6B48] active:scale-[0.97]';
 
 const Orders: React.FC<OrdersProps> = ({ transactions, lang, currentUser, onRefund, onReprint }) => {
   const t = TRANSLATIONS[lang];
@@ -133,26 +136,29 @@ const Orders: React.FC<OrdersProps> = ({ transactions, lang, currentUser, onRefu
     StorageService.saveTransaction(refundTx);
     setRefundTarget(null);
     onRefund();
+    toast(lang === 'ar' ? 'تم الاسترجاع بنجاح' : 'Refund processed successfully', 'success');
   };
 
   return (
-    <div className="h-screen overflow-hidden bg-[#F2F2F7] p-5 text-[#1C1C1E]">
+    <div className="h-full overflow-hidden bg-[#F2F2F7] p-3 text-[#1C1C1E] sm:p-5">
       <div className="flex h-full min-h-0 flex-col">
-        <div className="mb-5 shrink-0">
-          <div className="mb-4 flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#007AFF]">Financial Ledger</p>
-              <h1 className="mt-2 text-4xl font-black tracking-tight text-[#1C1C1E]">{t.orders}</h1>
-              <p className="mt-2 text-sm font-semibold text-[#8E8E93]">
+        <div className="mb-4 shrink-0 sm:mb-5">
+          <div className="mb-4 flex flex-col justify-between gap-3 xl:flex-row xl:items-end">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#1E6B48] sm:text-xs">
+                {lang === 'ar' ? 'السجل المالي' : 'Financial Ledger'}
+              </p>
+              <h1 className="mt-1.5 text-4xl font-black tracking-tight text-[#1C1C1E]">{t.orders}</h1>
+              <p className="mt-1.5 text-xs font-semibold text-[#8E8E93] sm:text-sm">
                 {isAdmin
                   ? (lang === 'ar' ? 'عرض كل الفروع مع فلترة دقيقة حسب التاريخ.' : 'Owner visibility across all branches with strict date filtering.')
                   : (lang === 'ar' ? 'الفواتير معزولة تلقائياً للفرع المخصص لك فقط.' : 'Invoices are automatically isolated to your assigned branch.')}
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               {isAdmin && (
-                <select value={selectedBranchId} onChange={event => setSelectedBranchId(event.target.value)} className={`${controlClass} min-w-[210px]`}>
+                <select value={selectedBranchId} onChange={event => setSelectedBranchId(event.target.value)} className={`${controlClass} min-w-0 flex-1 sm:min-w-[210px] sm:flex-none`}>
                   <option value="all">{lang === 'ar' ? 'كل الفروع' : 'All branches'}</option>
                   {branches.map(branch => (
                     <option key={branch.id} value={branch.id}>{lang === 'ar' ? branch.nameAr : branch.nameEn}</option>
@@ -161,24 +167,31 @@ const Orders: React.FC<OrdersProps> = ({ transactions, lang, currentUser, onRefu
               )}
               {!isAdmin && (
                 <div className="flex h-11 items-center rounded-xl bg-white px-4 text-sm font-black text-[#1C1C1E] shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-                  {branches.find(branch => branch.id === staffBranchId)?.nameEn || 'Assigned branch'}
+                  {branches.find(branch => branch.id === staffBranchId)?.nameEn || (lang === 'ar' ? 'الفرع المخصص' : 'Assigned branch')}
                 </div>
               )}
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-3 text-[#8E8E93]" size={17} />
-                <input value={searchTerm} onChange={event => setSearchTerm(event.target.value)} placeholder="Search invoice, note, cashier..." className={`${controlClass} w-[280px] pl-10`} />
+              <div className="relative min-w-0 flex-1 sm:flex-none">
+                <Search className={`pointer-events-none absolute top-3 text-[#8E8E93] ${lang === 'ar' ? 'right-3' : 'left-3'}`} size={17} />
+                <input
+                  value={searchTerm}
+                  onChange={event => setSearchTerm(event.target.value)}
+                  placeholder={lang === 'ar' ? 'ابحث برقم الفاتورة أو الكاشير...' : 'Search invoice, note, cashier...'}
+                  className={`${controlClass} w-full sm:w-[280px] ${lang === 'ar' ? 'pr-10' : 'pl-10'}`}
+                />
               </div>
             </div>
           </div>
 
-          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-white p-3 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-            <div className="flex items-center gap-2 text-[#007AFF]">
-              <CalendarDays size={18} />
-              <span className="text-xs font-black uppercase tracking-wider">Date Range</span>
+          <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl bg-white p-3 shadow-[0_4px_24px_rgba(0,0,0,0.02)] sm:gap-3">
+            <div className="flex items-center gap-2 text-[#1E6B48]">
+              <CalendarDays size={16} />
+              <span className="text-[10px] font-black uppercase tracking-wider sm:text-xs">
+                {lang === 'ar' ? 'النطاق' : 'Date Range'}
+              </span>
             </div>
-            <input type="date" value={fromDate} onChange={event => setFromDate(event.target.value)} className={controlClass} />
-            <span className="text-xs font-black uppercase text-[#8E8E93]">Till</span>
-            <input type="date" value={toDate} onChange={event => setToDate(event.target.value)} className={controlClass} />
+            <input type="date" value={fromDate} onChange={event => setFromDate(event.target.value)} className={`${controlClass} min-w-0 flex-1 sm:flex-none`} />
+            <span className="text-[10px] font-black uppercase text-[#8E8E93] sm:text-xs">{lang === 'ar' ? 'إلى' : 'Till'}</span>
+            <input type="date" value={toDate} onChange={event => setToDate(event.target.value)} className={`${controlClass} min-w-0 flex-1 sm:flex-none`} />
             {[
               { key: 'today' as const, label: lang === 'ar' ? 'اليوم' : 'Today' },
               { key: 'week' as const, label: lang === 'ar' ? 'هذا الأسبوع' : 'This Week' },
@@ -192,7 +205,7 @@ const Orders: React.FC<OrdersProps> = ({ transactions, lang, currentUser, onRefu
 
           <div className="grid gap-4 md:grid-cols-3">
             {[
-              { label: lang === 'ar' ? 'إجمالي الإيراد' : 'Filtered Total Revenue', value: formatSar(metrics.gross), sub: `${metrics.count} ${lang === 'ar' ? 'فاتورة' : 'Invoices processed'}`, icon: TrendingUp, tone: 'text-[#007AFF] bg-blue-50' },
+              { label: lang === 'ar' ? 'إجمالي الإيراد' : 'Filtered Total Revenue', value: formatSar(metrics.gross), sub: `${metrics.count} ${lang === 'ar' ? 'فاتورة' : 'Invoices processed'}`, icon: TrendingUp, tone: 'text-[#1E6B48] bg-blue-50' },
               { label: lang === 'ar' ? 'ضريبة القيمة المضافة' : 'Filtered VAT Collected', value: formatSar(metrics.vat), sub: lang === 'ar' ? 'ضريبة المخرجات' : 'Output VAT in scope', icon: WalletCards, tone: 'text-emerald-700 bg-emerald-50' },
               { label: lang === 'ar' ? 'الاسترجاعات والتعديلات' : 'Refunds / Adjustments', value: formatSar(metrics.refunds), sub: lang === 'ar' ? 'رأس مال مرتجع' : 'Returned capital volume', icon: TrendingDown, tone: 'text-amber-700 bg-amber-50' },
             ].map(card => (
@@ -239,12 +252,12 @@ const Orders: React.FC<OrdersProps> = ({ transactions, lang, currentUser, onRefu
                         <td className={`px-5 py-4 text-sm font-black ${transaction.isRefund ? 'text-red-600' : 'text-[#1C1C1E]'}`}>{formatSar(transaction.total)}</td>
                         <td className="px-5 py-4">
                           <div className="flex justify-end gap-2">
-                            <button onClick={() => onReprint(transaction)} className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-[#1C1C1E] transition-all duration-200 ease-out active:scale-[0.97]" title={t.print}>
-                              <Printer size={17} />
+                            <button onClick={() => onReprint(transaction)} className="icon-btn icon-btn-neutral h-9 w-9" title={t.print} aria-label={t.print}>
+                              <Printer size={16} />
                             </button>
                             {!transaction.isRefund && (
-                              <button onClick={() => handleRefund(transaction)} className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-red-600 transition-all duration-200 ease-out active:scale-[0.97]" title={t.refund}>
-                                <RotateCcw size={17} />
+                              <button onClick={() => handleRefund(transaction)} className="icon-btn icon-btn-danger h-9 w-9" title={t.refund} aria-label={t.refund}>
+                                <RotateCcw size={16} />
                               </button>
                             )}
                           </div>
@@ -255,7 +268,7 @@ const Orders: React.FC<OrdersProps> = ({ transactions, lang, currentUser, onRefu
                           <td colSpan={6} className="px-5 py-4">
                             <div className="rounded-2xl bg-white p-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
                               <div className="mb-3 flex items-center gap-2 text-sm font-black text-[#1C1C1E]">
-                                <ReceiptText size={18} className="text-[#007AFF]" />
+                                <ReceiptText size={18} className="text-[#1E6B48]" />
                                 Order Items
                               </div>
                               <div className="space-y-2">

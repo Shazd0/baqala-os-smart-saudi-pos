@@ -35,9 +35,16 @@ function periodBounds(period: Period, from: string, to: string): { dateFrom: num
       dateTo: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).getTime(),
     };
   }
+  // Parse yyyy-mm-dd as local date (not UTC) to avoid timezone off-by-one
+  const parseLocalDate = (s: string, endOfDay = false) => {
+    const [y, m, d] = s.split('-').map(Number);
+    return endOfDay
+      ? new Date(y, m - 1, d, 23, 59, 59, 999).getTime()
+      : new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+  };
   return {
-    dateFrom: from ? new Date(from).getTime() : 0,
-    dateTo: to ? new Date(to + 'T23:59:59').getTime() : Date.now(),
+    dateFrom: from ? parseLocalDate(from) : 0,
+    dateTo: to ? parseLocalDate(to, true) : Date.now(),
   };
 }
 
@@ -263,7 +270,7 @@ const PurchaseReport: React.FC<PurchaseReportProps> = ({ products, transactions,
               )}
               {report.rows.map((inv, ri) => (
                 <tr key={inv.id || `inv-${ri}`} className="hover:bg-gray-50 transition-colors">
-                  <td className="p-3 text-gray-700">{new Date(inv.date).toLocaleDateString('ar-SA')}</td>
+                  <td className="p-3 text-gray-700">{new Date(inv.date).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-GB')}</td>
                   <td className="p-3">
                     <div className="font-medium text-gray-900">{inv.supplierName}</div>
                     {inv.supplierVatNumber && (

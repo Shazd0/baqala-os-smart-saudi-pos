@@ -97,7 +97,7 @@ const DeveloperBugReportConsole: React.FC<DeveloperBugReportConsoleProps> = ({
       <button
         type="button"
         onClick={onOpen}
-        className="fixed bottom-6 right-5 z-[70] flex h-14 w-14 items-center justify-center rounded-full bg-[#007AFF] text-white shadow-[0_16px_36px_rgba(0,122,255,0.28)] ring-4 ring-white/80 active:scale-[0.97] sm:bottom-8 sm:right-8"
+        className="fixed bottom-6 right-5 z-[70] flex h-14 w-14 items-center justify-center rounded-full bg-[#1E6B48] text-white shadow-[0_16px_36px_rgba(30,107,72,0.28)] ring-4 ring-white/80 active:scale-[0.97] sm:bottom-8 sm:right-8"
         style={motionStyle}
         aria-label="Report a bug directly to the programmer"
         title="Report a bug directly to the programmer"
@@ -110,7 +110,7 @@ const DeveloperBugReportConsole: React.FC<DeveloperBugReportConsoleProps> = ({
           <div className="w-full max-w-xl rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_12px_48px_rgba(0,0,0,0.06)]">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-[#007AFF]">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-[#1E6B48]">
                   <ShieldCheck size={14} />
                   Direct Programmer Pipe
                 </div>
@@ -152,7 +152,7 @@ const DeveloperBugReportConsole: React.FC<DeveloperBugReportConsoleProps> = ({
                 <select
                   value={category}
                   onChange={event => setCategory(event.target.value as DeveloperReportCategory)}
-                  className="h-11 w-full rounded-xl border-0 bg-slate-100 px-4 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-[1.5px] focus:ring-[#007AFF]"
+                  className="h-11 w-full rounded-xl border-0 bg-slate-100 px-4 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-[1.5px] focus:ring-[#1E6B48]"
                   style={motionStyle}
                 >
                   {CATEGORY_OPTIONS.map(option => (
@@ -167,7 +167,7 @@ const DeveloperBugReportConsole: React.FC<DeveloperBugReportConsoleProps> = ({
                   value={screenContext}
                   onChange={event => setScreenContext(event.target.value)}
                   placeholder="Example: POS payment screen, Table 4 checkout, ZATCA settings"
-                  className="h-11 w-full rounded-xl border-[1.5px] border-transparent bg-[#E9E9EB] px-4 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#007AFF] focus:bg-white"
+                  className="h-11 w-full rounded-xl border-[1.5px] border-transparent bg-[#E9E9EB] px-4 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#1E6B48] focus:bg-white"
                   style={motionStyle}
                 />
               </label>
@@ -179,7 +179,7 @@ const DeveloperBugReportConsole: React.FC<DeveloperBugReportConsoleProps> = ({
                   onChange={event => setDescription(event.target.value)}
                   placeholder="Describe the exact error, what you clicked, and what should have happened instead."
                   rows={6}
-                  className="w-full resize-none rounded-xl border-[1.5px] border-transparent bg-[#E9E9EB] px-4 py-3 text-sm font-semibold leading-relaxed text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#007AFF] focus:bg-white"
+                  className="w-full resize-none rounded-xl border-[1.5px] border-transparent bg-[#E9E9EB] px-4 py-3 text-sm font-semibold leading-relaxed text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#1E6B48] focus:bg-white"
                   style={motionStyle}
                 />
               </label>

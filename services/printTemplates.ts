@@ -26,12 +26,12 @@ export function brandLogo(config?: StoreConfig) {
   if (config?.logoDataUrl) {
     return `<img src="${config.logoDataUrl}" class="brand-logo" alt="Store logo" />`;
   }
-  return `<img src="${APP_LOGO_DATA_URL}" class="brand-logo" alt="Oasis Dine RMS logo" />`;
+  return `<img src="${APP_LOGO_DATA_URL}" class="brand-logo" alt="Baqala OS logo" />`;
 }
 
 export function brandHeader(config: StoreConfig | undefined, titleAr: string, titleEn: string, meta = '') {
-  const storeAr = escapeHtml(config?.nameAr || config?.nameEn || 'مطعم أواسس داين');
-  const storeEn = escapeHtml(config?.nameEn || config?.nameAr || 'Oasis Dine');
+  const storeAr = escapeHtml(config?.nameAr || config?.nameEn || 'بقالة');
+  const storeEn = escapeHtml(config?.nameEn || config?.nameAr || 'Baqala OS');
   const vat = escapeHtml(config?.vatNumber || '—');
   const phone = escapeHtml(config?.phone || '');
   const address = escapeHtml(config?.address || '');

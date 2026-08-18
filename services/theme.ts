@@ -1,15 +1,15 @@
 export const IOS_THEME = {
-  background: '#F2F2F7',
+  background: '#F3F5F2',
   card: '#FFFFFF',
-  accent: '#007AFF',
-  accentSoft: 'rgba(0, 122, 255, 0.1)',
-  text: '#1C1C1E',
-  secondaryText: '#8E8E93',
-  tertiaryText: '#C7C7CC',
-  inputFill: '#E9E9EB',
-  divider: '#E5E5EA',
-  success: '#34C759',
-  danger: '#FF3B30',
+  accent: '#1E6B48',
+  accentSoft: 'rgba(30, 107, 72, 0.10)',
+  text: '#1A211C',
+  secondaryText: '#6B756F',
+  tertiaryText: '#A3ADA7',
+  inputFill: '#E7EEE9',
+  divider: '#DCE5DF',
+  success: '#1E6B48',
+  danger: '#C2412D',
 };
 
 export const GOLD_THEME = IOS_THEME;

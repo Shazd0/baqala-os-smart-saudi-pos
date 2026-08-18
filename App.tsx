@@ -1,25 +1,19 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { BarChart3, Building2, ChefHat, DownloadCloud, FileText, LayoutDashboard, LogOut, MapPin, Menu, Monitor, Package, Settings as SettingsIcon, ShoppingCart, Trash2, TrendingUp, Truck, Users, X, type LucideIcon } from 'lucide-react';
-import RestaurantPOS from './components/RestaurantPOS';
+import {
+  BarChart3, BookOpen, Building2, DownloadCloud, FileText, LayoutDashboard, LogOut,
+  Menu, Monitor, Package, Settings as SettingsIcon, ShoppingCart, Store, Tag,
+  Truck, Users, Wallet, X, Clock, type LucideIcon,
+} from 'lucide-react';
+import POS from './components/POS';
 import Dashboard from './components/Dashboard';
 import Inventory from './components/Inventory';
 import Expenses from './components/Expenses';
 import Orders from './components/Orders';
 import Settings from './components/Settings';
 import Compliance from './components/Compliance';
-import KitchenDisplay from './components/KitchenDisplay';
-import MenuManager from './components/MenuManager';
-import RecipeInventory from './components/RecipeInventory';
 import StaffCompliance from './components/StaffCompliance';
-import TableFloor from './components/TableFloor';
-import WasteLog from './components/WasteLog';
-import RestaurantAdmin from './components/RestaurantAdmin';
+import Branches from './components/Branches';
 import AdminPortal from './components/AdminPortal';
-import TabOrdering from './components/TabOrdering';
-import RestaurantFeatures from './components/RestaurantFeatures';
-import HungerStationReport from './components/HungerStationReport';
-import CustomerQrOrder from './components/CustomerQrOrder';
 import ReceiptModal from './components/ReceiptModal';
 import DeveloperBugReportConsole from './components/DeveloperBugReportConsole';
 import SetupWizard from './components/SetupWizard';
@@ -27,20 +21,40 @@ import Login from './components/Login';
 import PurchaseReport from './components/PurchaseReport';
 import Suppliers from './components/Suppliers';
 import Activation from './components/Activation';
+import Customers from './components/Customers';
+import CreditBook from './components/CreditBook';
+import Deals from './components/Deals';
+import ShiftManager from './components/ShiftManager';
+import ZReport from './components/ZReport';
 import { ToastProvider } from './components/Toast';
 import { StorageService } from './services/storageService';
-import { isActivated, getActivation, trialDaysLeft } from './services/licenseService';
+import { CustomerDisplayService } from './services/printerService';
+import { isActivated, getActivation, trialDaysLeft, initActivation } from './services/licenseService';
 import { APP_LOGO_DATA_URL } from './services/appLogo';
 import { Product, Transaction, Language, CartItem, StoreConfig, Customer, User } from './types';
-import { TRANSLATIONS } from './constants';
 
-type View = 'dashboard' | 'pos' | 'tables' | 'kds' | 'tabs' | 'stock' | 'vendors' | 'purchases' | 'waste' | 'menu' | 'invoices' | 'hungerstation' | 'staff' | 'restaurantAdmin' | 'adminPortal' | 'analytics' | 'settings' | 'compliance';
-const APP_NAME = 'Oasis Dine RMS';
+type View =
+  | 'dashboard'
+  | 'pos'
+  | 'stock'
+  | 'vendors'
+  | 'purchases'
+  | 'invoices'
+  | 'customers'
+  | 'credit'
+  | 'deals'
+  | 'expenses'
+  | 'staff'
+  | 'branches'
+  | 'adminPortal'
+  | 'settings'
+  | 'compliance'
+  | 'zreport';
+
+const APP_NAME = 'Baqala OS';
+const SUPPORT_EMAIL = 'support@baqalaos.sa';
 
 function App() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const qrTableId = urlParams.get('qrTable');
-  const standaloneView = urlParams.get('standalone');
   const [activated, setActivated] = useState<boolean>(() => isActivated());
   const [view, setView] = useState<View>('pos');
   const [lang, setLang] = useState<Language>('en');
@@ -53,15 +67,27 @@ function App() {
   const [dataVersion, setDataVersion] = useState(0);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showDeveloperConsole, setShowDeveloperConsole] = useState(false);
+  const [showShiftManager, setShowShiftManager] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const sidebarRef = useRef<HTMLElement | null>(null);
   const sidebarScrollTopRef = useRef(0);
   const developerBrandTapRef = useRef(0);
-  
-  // Receipt State
+
   const [showReceipt, setShowReceipt] = useState(false);
   const [currentTransaction, setCurrentTransaction] = useState<Transaction | null>(null);
 
-  // Initialize data
+  useEffect(() => {
+    initActivation().then(() => {
+      setActivated(isActivated());
+    });
+  }, []);
+
+  useEffect(() => {
+    void StorageService.loadFromSQLite().then(() => {
+      refreshData();
+    });
+  }, []);
+
   useEffect(() => {
     refreshData();
     StorageService.syncFirebaseData().then(synced => {
@@ -82,26 +108,30 @@ function App() {
     setDataVersion(version => version + 1);
   };
 
-  const t = TRANSLATIONS[lang];
   const branches = StorageService.getBranches();
   const activeBranchId = StorageService.getActiveBranchId();
   const activeBranch = branches.find(branch => branch.id === activeBranchId);
-  const restaurantOrders = StorageService.getRestaurantOrders();
-  const activeOrderCount = restaurantOrders.filter(order => !['paid', 'cancelled', 'served'].includes(order.status)).length;
-  const activeTableCount = restaurantOrders.filter(order => order.tableId && !['paid', 'cancelled', 'served'].includes(order.status)).length;
   const lowStockCount = products.filter(product => Number(product.stock || 0) <= 5).length;
   const zatcaState = StorageService.getZatcaState();
   const zatcaReady = zatcaState.onboardingStatus === 'production_ready';
   const databaseLabel = StorageService.isTrialMode()
-    ? 'Trial mock data'
+    ? (lang === 'ar' ? 'بيانات تجريبية' : 'Trial data')
     : StorageService.isFirebaseConfigured()
       ? 'Firebase'
-      : 'Firebase required';
+      : (lang === 'ar' ? 'يلزم Firebase' : 'Firebase required');
 
   useEffect(() => {
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
   }, [lang]);
+
+  useEffect(() => {
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
 
   useEffect(() => {
     if (!setupComplete || !currentUser || StorageService.isDesktopRuntime()) return;
@@ -120,12 +150,12 @@ function App() {
     const shortcuts: Record<string, View> = {
       '1': 'dashboard',
       '2': 'pos',
-      '3': 'tables',
-      '4': 'kds',
-      '5': 'stock',
-      '6': 'menu',
-      '7': 'invoices',
-      '8': 'analytics',
+      '3': 'stock',
+      '4': 'invoices',
+      '5': 'customers',
+      '6': 'credit',
+      '7': 'purchases',
+      '8': 'expenses',
       '9': 'settings',
     };
 
@@ -161,11 +191,11 @@ function App() {
   }, [currentUser?.id, currentUser?.role]);
 
   const handleCheckout = (
-    cartItems: CartItem[], 
-    method: 'cash' | 'card' | 'credit', 
-    customerId?: string, 
-    discount: number = 0, 
-    note?: string, 
+    cartItems: CartItem[],
+    method: 'cash' | 'card' | 'credit',
+    customerId?: string,
+    discount: number = 0,
+    note?: string,
     earnedPoints?: number,
     preCalculated?: { subtotal: number; vat: number; total: number; selectiveTaxAmount: number },
     paymentApprovalReference?: string
@@ -208,11 +238,9 @@ function App() {
     };
 
     const savedTransaction = StorageService.saveTransaction(transaction);
-    refreshData(); // Refresh all state
+    refreshData();
     setCurrentTransaction(savedTransaction);
     setShowReceipt(true);
-
-    // ReceiptModal owns the branded receipt template and auto-print behavior.
   };
 
   const handleAddProduct = (product: Product) => {
@@ -268,6 +296,12 @@ function App() {
     developerBrandTapRef.current = now;
   };
 
+  const handleBranchSwitch = (branchId: string) => {
+    if (!branchId) return;
+    StorageService.setActiveBranchId(branchId);
+    refreshData();
+  };
+
   useEffect(() => {
     restoreSidebarScroll();
   }, [view]);
@@ -284,8 +318,6 @@ function App() {
       language: lang,
       activeBranchId,
       activeBranchName: activeBranch?.nameEn,
-      activeOrderCount,
-      activeTableCount,
       lowStockCount,
       productCount: products.length,
       transactionCount: transactions.length,
@@ -301,96 +333,75 @@ function App() {
     items: Array<{ target: View; icon: LucideIcon; label: string; shortcut?: string }>;
   }> = [
     {
-      title: lang === 'ar' ? 'العمليات' : 'OPERATIONS',
+      title: lang === 'ar' ? 'العمليات' : 'Operations',
       items: [
         { target: 'dashboard', icon: LayoutDashboard, label: lang === 'ar' ? 'لوحة التحكم' : 'Dashboard', shortcut: 'Alt+1' },
-        { target: 'pos', icon: ShoppingCart, label: lang === 'ar' ? 'نقطة البيع' : 'POS Terminal', shortcut: 'Alt+2' },
-        { target: 'tables', icon: MapPin, label: lang === 'ar' ? 'خريطة الطاولات' : 'Table Map', shortcut: 'Alt+3' },
-        { target: 'kds', icon: Monitor, label: lang === 'ar' ? 'شاشة المطبخ' : 'Kitchen Display', shortcut: 'Alt+4' },
-        { target: 'tabs', icon: FileText, label: lang === 'ar' ? 'طلبات التابلت' : 'Tablet Ordering' },
+        { target: 'pos', icon: ShoppingCart, label: lang === 'ar' ? 'نقطة البيع' : 'POS', shortcut: 'Alt+2' },
       ],
     },
     {
-      title: lang === 'ar' ? 'المخزون' : 'INVENTORY',
+      title: lang === 'ar' ? 'المبيعات' : 'Sales',
       items: [
-        { target: 'stock', icon: Package, label: lang === 'ar' ? 'أصناف المخزون' : 'Stock Items', shortcut: 'Alt+5' },
+        { target: 'invoices', icon: FileText, label: lang === 'ar' ? 'الفواتير' : 'Invoices', shortcut: 'Alt+4' },
+        { target: 'customers', icon: Users, label: lang === 'ar' ? 'العملاء' : 'Customers', shortcut: 'Alt+5' },
+        { target: 'credit', icon: BookOpen, label: lang === 'ar' ? 'دفتر الآجل' : 'Credit book', shortcut: 'Alt+6' },
+      ],
+    },
+    {
+      title: lang === 'ar' ? 'المخزون' : 'Inventory',
+      items: [
+        { target: 'stock', icon: Package, label: lang === 'ar' ? 'المنتجات' : 'Products', shortcut: 'Alt+3' },
         { target: 'vendors', icon: Truck, label: lang === 'ar' ? 'الموردون' : 'Vendors' },
-        { target: 'purchases', icon: FileText, label: lang === 'ar' ? 'أوامر الشراء' : 'Purchase Orders' },
-        { target: 'waste', icon: Trash2, label: lang === 'ar' ? 'سجل الهدر' : 'Waste Log' },
+        { target: 'purchases', icon: FileText, label: lang === 'ar' ? 'المشتريات' : 'Purchases', shortcut: 'Alt+7' },
+        { target: 'deals', icon: Tag, label: lang === 'ar' ? 'العروض' : 'Deals' },
       ],
     },
     {
-      title: lang === 'ar' ? 'القائمة والتقارير' : 'MENU & REPORTS',
+      title: lang === 'ar' ? 'المتجر' : 'Store',
       items: [
-        { target: 'menu', icon: ChefHat, label: lang === 'ar' ? 'أصناف القائمة' : 'Menu Items', shortcut: 'Alt+6' },
-        { target: 'invoices', icon: FileText, label: lang === 'ar' ? 'الفواتير' : 'Invoices', shortcut: 'Alt+7' },
-        { target: 'hungerstation', icon: Truck, label: lang === 'ar' ? 'هنقرستيشن' : 'HungerStation' },
-        ...(currentUser?.role === 'administrator' ? [
+        { target: 'expenses', icon: Wallet, label: lang === 'ar' ? 'المصاريف' : 'Expenses', shortcut: 'Alt+8' },
+        { target: 'zreport' as const, icon: BarChart3, label: lang === 'ar' ? 'تقرير Z' : 'Z-Report' },
+          ...(currentUser?.role === 'administrator' ? [
           { target: 'staff' as const, icon: Users, label: lang === 'ar' ? 'الموظفون' : 'Staff' },
-          { target: 'restaurantAdmin' as const, icon: Building2, label: lang === 'ar' ? 'إدارة المطاعم' : 'Restaurant Admin' },
-          { target: 'adminPortal' as const, icon: BarChart3, label: lang === 'ar' ? 'بوابة الإدارة' : 'Admin Portal' },
+          { target: 'branches' as const, icon: Building2, label: lang === 'ar' ? 'الفروع' : 'Branches' },
+          { target: 'adminPortal' as const, icon: BarChart3, label: lang === 'ar' ? 'بوابة الإدارة' : 'Admin' },
         ] : []),
-        { target: 'analytics', icon: TrendingUp, label: lang === 'ar' ? 'التحليلات' : 'Analytics', shortcut: 'Alt+8' },
-      ],
-    },
-    {
-      title: lang === 'ar' ? 'النظام' : 'SYSTEM',
-      items: [
         { target: 'settings', icon: SettingsIcon, label: lang === 'ar' ? 'الإعدادات' : 'Settings', shortcut: 'Alt+9' },
-        { target: 'compliance', icon: DownloadCloud, label: lang === 'ar' ? 'زاتكا المرحلة الثانية' : 'ZATCA Phase 2' },
+        { target: 'compliance', icon: DownloadCloud, label: lang === 'ar' ? 'زاتكا' : 'ZATCA' },
       ],
     },
   ];
 
-  const NavButton = ({ target, icon: Icon, label, shortcut }: { target: View, icon: LucideIcon, label: string, shortcut?: string }) => {
+  const NavButton = ({ target, icon: Icon, label, shortcut }: { target: View; icon: LucideIcon; label: string; shortcut?: string }) => {
     const active = view === target;
-    const isPrimary = target === 'dashboard' || target === 'pos' || target === 'tables' || target === 'kds' || target === 'tabs';
-    const badge = target === 'pos'
-      ? activeOrderCount
-      : target === 'tables'
-        ? activeTableCount
-        : target === 'stock'
-          ? lowStockCount
-          : undefined;
+    const badge = target === 'stock' ? lowStockCount : undefined;
     return (
       <button
         type="button"
         onMouseDown={event => event.preventDefault()}
         onClick={() => handleViewChange(target)}
         title={shortcut ? `${label} (${shortcut})` : label}
-        className={`flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left transition-all duration-200 ease-out active:scale-[0.97] ${
+        className={`nav-item group relative flex h-10 w-full items-center gap-2.5 rounded-xl px-2.5 text-left transition-all duration-200 ease-out ${
           active
-            ? isPrimary
-              ? 'bg-[#007AFF] text-white shadow-[0_10px_26px_rgba(0,122,255,0.18)]'
-              : 'bg-blue-50 text-blue-600'
-            : 'bg-transparent text-slate-800 hover:bg-slate-100/80'
+            ? 'nav-item-active bg-[var(--ios-accent)] text-white shadow-[0_8px_24px_rgba(30,107,72,0.22)]'
+            : 'bg-transparent text-[var(--ios-secondary)] hover:bg-[var(--ios-fill)] hover:text-[var(--ios-text)]'
         }`}
       >
-        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200 ${
-          active
-            ? isPrimary
-              ? 'bg-white/15 text-white'
-              : 'bg-blue-100 text-blue-600'
-            : 'text-slate-400'
+        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all duration-200 ${
+          active ? 'bg-white/20 text-white' : 'text-[var(--ios-secondary)] group-hover:text-[var(--ios-accent)]'
         }`}>
-          <Icon size={18} strokeWidth={active ? 2.25 : 2} />
+          <Icon size={16} strokeWidth={active ? 2.5 : 2} />
         </span>
         <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-          <span className="min-w-0 truncate text-sm font-semibold tracking-tight">{label}</span>
+          <span className={`min-w-0 truncate text-[13px] font-semibold tracking-tight transition-all duration-200 ${active ? 'text-white' : ''}`}>{label}</span>
           {badge !== undefined && badge > 0 && (
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-              target === 'stock'
-                ? 'bg-amber-50 text-amber-600'
-                : active && isPrimary
-                  ? 'bg-white/20 text-white'
-                  : 'bg-slate-100 text-slate-500'
-            }`}>
+            <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-700'}`}>
               {badge}
             </span>
           )}
           {target === 'compliance' && (
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-              zatcaReady ? 'bg-emerald-50 text-emerald-600 shadow-[0_0_18px_rgba(52,199,89,0.16)]' : 'bg-blue-50 text-blue-600'
+            <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+              active ? 'bg-white/25 text-white' : zatcaReady ? 'bg-emerald-100 text-emerald-700' : 'bg-[var(--ios-accent-soft)] text-[var(--ios-accent)]'
             }`}>
               {zatcaReady ? 'Sync' : 'Test'}
             </span>
@@ -400,16 +411,6 @@ function App() {
     );
   };
 
-  /* ── 1. License gate — MUST come before everything else ── */
-  if (qrTableId) {
-    return (
-      <ToastProvider>
-        <CustomerQrOrder tableId={qrTableId} />
-      </ToastProvider>
-    );
-  }
-
-  /* ── 2. License gate — MUST come before staff app ── */
   if (!activated) {
     return (
       <ToastProvider>
@@ -418,39 +419,23 @@ function App() {
     );
   }
 
-  /* ── 3. First-time store setup ── */
   if (!setupComplete) {
     return <SetupWizard onComplete={completeSetup} />;
   }
 
-  /* ── 4. Login ── */
   if (!currentUser) {
     return <Login onLogin={handleLogin} />;
   }
 
-  if (standaloneView === 'kitchen') {
-    return (
-      <ToastProvider>
-        <div className={`ios-app h-screen overflow-hidden bg-[var(--ios-bg)] ${lang === 'ar' ? 'font-arabic' : ''}`}>
-          <KitchenDisplay lang={lang} />
-        </div>
-      </ToastProvider>
-    );
-  }
-
-  if (standaloneView === 'tabs') {
-    return (
-      <ToastProvider>
-        <div className={`ios-app h-screen overflow-hidden bg-[var(--ios-bg)] ${lang === 'ar' ? 'font-arabic' : ''}`}>
-          <TabOrdering lang={lang} onChange={refreshData} />
-        </div>
-      </ToastProvider>
-    );
-  }
+  const bottomTabs: Array<{ target: View; icon: LucideIcon; label: string }> = [
+    { target: 'pos', icon: ShoppingCart, label: lang === 'ar' ? 'البيع' : 'POS' },
+    { target: 'stock', icon: Package, label: lang === 'ar' ? 'المنتجات' : 'Stock' },
+    { target: 'dashboard', icon: LayoutDashboard, label: lang === 'ar' ? 'التقارير' : 'Home' },
+  ];
 
   return (
     <ToastProvider>
-    <div className={`ios-app flex h-screen overflow-hidden ${lang === 'ar' ? 'font-arabic' : ''}`}>
+    <div className="ios-app flex h-screen overflow-hidden">
       {mobileSidebarOpen && (
         <button
           type="button"
@@ -459,50 +444,48 @@ function App() {
           className="ios-mobile-sidebar-backdrop"
         />
       )}
-      {/* Sidebar Navigation */}
       <nav
-        className={`ios-sidebar-shell ${mobileSidebarOpen ? 'ios-sidebar-shell-open' : ''} relative z-30 flex h-screen max-h-screen w-[280px] flex-shrink-0 flex-col overflow-hidden border-r border-slate-200/80 bg-white shadow-[4px_0_24px_rgba(0,0,0,0.02)]`}
+        className={`ios-sidebar-shell ${mobileSidebarOpen ? 'ios-sidebar-shell-open' : ''} relative z-30 flex h-screen max-h-screen w-[260px] flex-shrink-0 flex-col overflow-hidden border-r border-[var(--ios-divider)]`}
+        style={{ background: 'linear-gradient(180deg, #f8faf8 0%, #f3f5f2 100%)' }}
       >
-        <div className="flex-shrink-0 px-6 py-5">
-          <div className="flex items-start gap-3">
-            <img src={APP_LOGO_DATA_URL} alt="Oasis Dine RMS" className="mt-0.5 h-9 w-9 object-contain" />
+        {/* Brand header */}
+        <div className="flex-shrink-0 px-4 pb-3 pt-5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[var(--ios-accent)] shadow-[0_4px_14px_rgba(30,107,72,0.32)]">
+              <img src={APP_LOGO_DATA_URL} alt="Baqala OS" className="h-5 w-5 object-contain brightness-0 invert" />
+            </div>
             <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-                <h1
-                  onClick={handleBrandTap}
-                  onDoubleClick={openDeveloperConsole}
-                  className="cursor-default truncate text-xl font-black tracking-tight text-slate-950"
-                  title="Double tap for developer reporting"
-                >
-                  Oasis Dine
-                </h1>
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-400" />
-              </div>
-              <div className="mt-1 flex items-center gap-2">
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-500">RMS</span>
-                <span className="truncate text-[11px] font-bold text-slate-400">{databaseLabel} database</span>
-              </div>
+              <h1
+                onClick={handleBrandTap}
+                onDoubleClick={openDeveloperConsole}
+                className="cursor-default truncate text-[15px] font-extrabold tracking-tight text-[var(--ios-text)]"
+                title="Double tap for developer reporting"
+              >
+                {lang === 'ar' ? 'بقالة أو إس' : 'Baqala OS'}
+              </h1>
+              <p className="truncate text-[10px] font-semibold text-[var(--ios-tertiary)]">{databaseLabel}</p>
             </div>
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(false)}
-              className="ios-mobile-sidebar-close ml-auto"
+              className="ios-mobile-sidebar-close ml-auto shrink-0"
               aria-label={lang === 'ar' ? 'إغلاق القائمة' : 'Close menu'}
             >
-              <X size={18} />
+              <X size={16} />
             </button>
           </div>
         </div>
 
+        {/* Nav sections */}
         <div
           ref={sidebarRef}
           onScroll={event => { sidebarScrollTopRef.current = event.currentTarget.scrollTop; }}
-          className="scrollbar-none flex-1 space-y-6 overflow-y-auto px-4 py-3 no-scrollbar"
+          className="flex-1 overflow-y-auto px-3 pb-3 no-scrollbar"
         >
-          {navigationSections.map(section => (
-            <div key={section.title}>
-              <p className="mb-2 mt-4 block text-[11px] font-bold uppercase tracking-wider text-slate-400">{section.title}</p>
-              <div className="space-y-1.5">
+          {navigationSections.map((section, si) => (
+            <div key={section.title} className={si > 0 ? 'mt-4' : 'mt-1'}>
+              <p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-[0.13em] text-[var(--ios-tertiary)]">{section.title}</p>
+              <div className="space-y-0.5">
                 {section.items.map(item => (
                   <React.Fragment key={item.target}>
                     <NavButton target={item.target} icon={item.icon} label={item.label} shortcut={item.shortcut} />
@@ -513,50 +496,72 @@ function App() {
           ))}
         </div>
 
-        <div className="mt-auto flex-shrink-0 border-t border-slate-100 bg-slate-50/50 p-4">
-          <div className="rounded-2xl bg-white p-3 shadow-[0_4px_24px_rgba(0,0,0,0.03)]">
-            <div className="mb-3 rounded-xl bg-slate-50 px-3 py-2">
-              <p className="truncate text-xs font-black uppercase tracking-wider text-slate-400">Active branch</p>
-              <p className="mt-0.5 truncate text-sm font-black tracking-tight text-slate-900">{activeBranch?.nameEn || 'Select Branch'}</p>
+        {/* Footer — branch + user */}
+        <div className="flex-shrink-0 p-3 pt-0">
+          <div className="rounded-2xl border border-[var(--ios-divider)] bg-white p-3 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+            {/* Offline badge + shift button */}
+            <div className="mb-2.5 flex items-center gap-2">
+              {!isOnline && (
+                <div className="flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                  {lang === 'ar' ? 'غير متصل' : 'Offline'}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowShiftManager(true)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[var(--ios-fill)] px-2.5 py-1.5 text-xs font-bold text-[var(--ios-text)] hover:bg-[var(--ios-accent-soft)] hover:text-[var(--ios-accent)] transition-colors"
+              >
+                <Clock size={12} />
+                {lang === 'ar' ? 'الوردية' : 'Shift'}
+              </button>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-sm font-black text-blue-600">
+            {/* Branch */}
+            <div className="mb-2.5 flex items-center gap-2 rounded-xl bg-[var(--ios-fill)] px-2.5 py-2">
+              <Store size={12} className="shrink-0 text-[var(--ios-accent)]" />
+              <p className="min-w-0 flex-1 truncate text-[12px] font-bold tracking-tight text-[var(--ios-text)]">
+                {lang === 'ar' ? (activeBranch?.nameAr || activeBranch?.nameEn) : (activeBranch?.nameEn || activeBranch?.nameAr) || (lang === 'ar' ? 'اختر فرعاً' : 'No branch')}
+              </p>
+            </div>
+            {/* User row */}
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--ios-accent)] text-[12px] font-bold text-white">
                 {currentUser.name.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-black tracking-tight text-slate-900" title={currentUser.name}>{currentUser.name}</p>
-                <p className="truncate text-xs font-semibold capitalize text-slate-500">{currentUser.role}</p>
+                <p className="truncate text-[12px] font-bold tracking-tight text-[var(--ios-text)]" title={currentUser.name}>{currentUser.name}</p>
+                <p className="truncate text-[10px] font-semibold capitalize text-[var(--ios-tertiary)]">{currentUser.role}</p>
               </div>
               <button
                 onClick={() => setLang(l => l === 'en' ? 'ar' : 'en')}
-                className="flex h-9 min-h-0 w-9 items-center justify-center rounded-xl bg-slate-100 text-xs font-black text-slate-600"
+                className="flex h-8 min-h-0 w-8 items-center justify-center rounded-xl bg-[var(--ios-fill)] text-[11px] font-extrabold text-[var(--ios-text)] shadow-none"
               >
                 {lang === 'en' ? 'AR' : 'EN'}
               </button>
               <button
                 onClick={handleLogout}
-                className="flex h-9 min-h-0 w-9 items-center justify-center rounded-xl bg-[#FFECEA] text-[#FF3B30]"
+                className="flex h-8 min-h-0 w-8 items-center justify-center rounded-xl bg-red-50 text-[#C2412D] shadow-none"
                 aria-label={lang === 'ar' ? 'تسجيل الخروج' : 'Logout'}
               >
-                <LogOut size={16} />
+                <LogOut size={14} />
               </button>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Main Content Area */}
-        <main className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-[var(--ios-bg)]">
-        {/* Trial banner */}
+      <main className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-[var(--ios-bg)]">
         {(() => {
           const act = getActivation();
           if (act?.plan === 'trial') {
             const days = trialDaysLeft(act);
             return (
-              <div className={`z-30 px-4 py-2 text-center text-xs font-semibold ${days <= 3 ? 'bg-[#FF3B30] text-white' : 'bg-[var(--ios-accent-soft)] text-[var(--ios-accent)]'}`}>
+              <div className={`z-30 px-4 py-2 text-center text-xs font-semibold ${days <= 3 ? 'bg-[#C2412D] text-white' : 'bg-[var(--ios-accent-soft)] text-[var(--ios-accent)]'}`}>
                 {days > 0
-                  ? `Trial: ${days} day${days === 1 ? '' : 's'} remaining - Purchase a license at support@oasisdine.sa`
-                  : 'Trial expired - Please purchase a license to continue using Oasis Dine RMS'}
+                  ? (lang === 'ar'
+                    ? `التجربة: ${days} يوم متبقٍ — الترخيص عبر ${SUPPORT_EMAIL}`
+                    : `Trial: ${days} day${days === 1 ? '' : 's'} remaining — license at ${SUPPORT_EMAIL}`)
+                  : (lang === 'ar' ? 'انتهت التجربة — يرجى شراء ترخيص لمتابعة بقالة' : 'Trial expired — purchase a license to continue using Baqala OS')}
               </div>
             );
           }
@@ -571,54 +576,60 @@ function App() {
             aria-label={lang === 'ar' ? 'فتح التنقل' : 'Open navigation'}
           >
             <Menu size={20} />
-            <span className="text-sm font-bold">{APP_NAME}</span>
+            <span className="text-sm font-bold">{lang === 'ar' ? 'بقالة' : APP_NAME}</span>
           </button>
-          <div className="flex items-center justify-end gap-3">
-          <button
-            onClick={() => handleViewChange('restaurantAdmin')}
-            className="ios-button-secondary hidden min-h-0 items-center gap-2 px-3 py-2 text-xs lg:flex"
-            title={lang === 'ar' ? 'الفرع النشط' : 'Active branch'}
-          >
-            <Building2 size={15} />
-            <span>{activeBranch?.nameEn || (lang === 'ar' ? 'اختر فرعاً' : 'Select Branch')}</span>
-          </button>
+          <div className="ms-auto hidden min-w-0 items-center gap-2 lg:flex">
+            {CustomerDisplayService.isAvailable() && (
+              <button
+                type="button"
+                onClick={() => CustomerDisplayService.open()}
+                title={lang === 'ar' ? 'فتح شاشة العميل' : 'Open customer display'}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--ios-fill)] text-[var(--ios-secondary)] hover:bg-[var(--ios-accent-soft)] hover:text-[var(--ios-accent)] transition-colors"
+              >
+                <Monitor size={16} />
+              </button>
+            )}
+            <Store size={15} className="shrink-0 text-[var(--ios-secondary)]" />
+            <select
+              value={activeBranchId}
+              onChange={event => handleBranchSwitch(event.target.value)}
+              className="ios-input min-h-0 h-10 min-w-[180px] py-0 text-xs font-bold"
+              title={lang === 'ar' ? 'الفرع النشط' : 'Active branch'}
+            >
+              {branches.map(branch => (
+                <option key={branch.id} value={branch.id}>
+                  {lang === 'ar' ? branch.nameAr || branch.nameEn : branch.nameEn}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden relative animate-shell-in">
+        <div key={view} className="baqala-main-scroll relative flex-1 overflow-hidden animate-tab-in">
           {view === 'pos' && (
-            <RestaurantPOS
+            <POS
+              products={products}
               customers={customers}
-              lang={lang} 
-              onCheckout={handleCheckout} 
+              lang={lang}
+              onCheckout={handleCheckout}
               shiftOpen={true}
               config={config}
-              currentUser={currentUser}
-              shiftId={undefined}
-              onChange={refreshData}
             />
           )}
 
-          {view === 'tables' && (
-            <TableFloor lang={lang} onChange={refreshData} onCheckout={handleCheckout} />
-          )}
-
-          {view === 'kds' && (
-            <KitchenDisplay lang={lang} />
-          )}
-
-          {view === 'tabs' && (
-            <TabOrdering lang={lang} onChange={refreshData} />
-          )}
-
           {view === 'dashboard' && (
-            <div className="h-full overflow-y-auto">
-               <Dashboard transactions={transactions} products={products} lang={lang} dataVersion={dataVersion} />
-            </div>
+            <Dashboard transactions={transactions} products={products} lang={lang} dataVersion={dataVersion} />
           )}
 
           {view === 'stock' && (
-            <RecipeInventory lang={lang} />
+            <div className="h-full overflow-hidden">
+              <Inventory
+                products={products}
+                onAddProduct={handleAddProduct}
+                onInventoryChange={refreshData}
+                lang={lang}
+              />
+            </div>
           )}
 
           {view === 'purchases' && (
@@ -638,12 +649,20 @@ function App() {
             </div>
           )}
 
-          {view === 'waste' && (
-            <WasteLog lang={lang} />
+          {view === 'customers' && (
+            <Customers customers={customers} setCustomers={setCustomers} lang={lang} />
           )}
 
-          {view === 'menu' && (
-            <MenuManager lang={lang} />
+          {view === 'credit' && (
+            <CreditBook lang={lang} />
+          )}
+
+          {view === 'deals' && (
+            <Deals lang={lang} products={products} />
+          )}
+
+          {view === 'expenses' && (
+            <Expenses lang={lang} onExpensesChange={refreshData} />
           )}
 
           {view === 'staff' && (
@@ -654,47 +673,66 @@ function App() {
             <AdminPortal lang={lang} />
           )}
 
-          {view === 'restaurantAdmin' && (
-            <RestaurantAdmin lang={lang} onChange={refreshData} />
+          {view === 'branches' && currentUser.role === 'administrator' && (
+            <Branches lang={lang} onChange={refreshData} />
           )}
 
           {view === 'invoices' && (
-             <Orders 
-               transactions={transactions} 
-               lang={lang} 
-               currentUser={currentUser}
-               onRefund={refreshData}
-               onReprint={(t) => { setCurrentTransaction(t); setShowReceipt(true); }}
-             />
-          )}
-
-          {view === 'hungerstation' && (
-            <HungerStationReport lang={lang} />
-          )}
-
-          {view === 'analytics' && (
-            <RestaurantFeatures lang={lang} />
+            <Orders
+              transactions={transactions}
+              lang={lang}
+              currentUser={currentUser}
+              onRefund={refreshData}
+              onReprint={(sale) => { setCurrentTransaction(sale); setShowReceipt(true); }}
+            />
           )}
 
           {view === 'settings' && (
-             <Settings lang={lang} onUpdate={refreshData} />
+            <Settings lang={lang} onUpdate={refreshData} />
           )}
 
           {view === 'compliance' && (
-             <Compliance lang={lang} />
+            <Compliance lang={lang} />
           )}
 
+          {view === 'zreport' && (
+            <ZReport lang={lang} />
+          )}
         </div>
+
+        <nav className="baqala-bottom-tabs" aria-label={lang === 'ar' ? 'التنقل السريع' : 'Quick navigation'}>
+          {bottomTabs.map(tab => {
+            const Icon = tab.icon;
+            const active = view === tab.target;
+            return (
+              <button
+                key={tab.target}
+                type="button"
+                onClick={() => handleViewChange(tab.target)}
+                className={`baqala-bottom-tab ${active ? 'baqala-bottom-tab-active' : ''}`}
+              >
+                <Icon size={20} strokeWidth={active ? 2.4 : 2} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </nav>
       </main>
 
-      {/* Receipt Modal */}
       {showReceipt && currentTransaction && (
-        <ReceiptModal 
+        <ReceiptModal
           transaction={currentTransaction}
-          customer={customers.find(c => c.id === currentTransaction.customerId)} 
-          onClose={() => setShowReceipt(false)} 
+          customer={customers.find(c => c.id === currentTransaction.customerId)}
+          onClose={() => setShowReceipt(false)}
           config={config}
           lang={lang}
+        />
+      )}
+
+      {showShiftManager && (
+        <ShiftManager
+          lang={lang}
+          onClose={() => setShowShiftManager(false)}
         />
       )}
 
@@ -704,7 +742,6 @@ function App() {
         onClose={() => setShowDeveloperConsole(false)}
         context={developerTelemetryContext}
       />
-
     </div>
     </ToastProvider>
   );

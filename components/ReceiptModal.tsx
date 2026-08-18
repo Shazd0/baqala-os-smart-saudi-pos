@@ -1,10 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Transaction, StoreConfig, Language, Customer } from '../types';
 import { TRANSLATIONS } from '../constants';
 import { QRCodeSVG } from 'qrcode.react';
 import { Share2, Printer, X, FileCode, CheckCircle } from 'lucide-react';
 import { documentShell, openPrintDocument, PrintDocumentOptions } from '../services/printTemplates';
 import { APP_LOGO_DATA_URL } from '../services/appLogo';
+import { ZATCA_INVOICE_SIGNED_EVENT } from '../services/storageService';
 import { useToast } from './Toast';
 
 interface ReceiptModalProps {
@@ -43,6 +44,11 @@ const convertToTlvBase64 = (sellerName: string, vatNo: string, timestamp: string
   }
 };
 
+/** Delay before printing once the hash is in hand, so React can commit it to the DOM. */
+const PRINT_SETTLE_MS = 250;
+/** Hard cap on waiting for the invoice hash, so printing never hangs on a crypto failure. */
+const PRINT_HASH_TIMEOUT_MS = 3000;
+
 const arReceipt = {
   receipt: 'الإيصال',
   vatNo: 'الرقم الضريبي',
@@ -74,6 +80,9 @@ const formatSar = (amount: number) => `${amount.toFixed(2)} ر.س`;
 const ReceiptModal: React.FC<ReceiptModalProps> = ({ transaction, customer, onClose, config, lang }) => {
   const printedRef = useRef<string | null>(null);
   const { toast } = useToast();
+  // The invoice hash and signature are computed asynchronously just after the
+  // sale is stored, so re-render once they have been patched onto the record.
+  const [, setSignedTick] = useState(0);
   const receiptPrintOptions = (): PrintDocumentOptions => {
     const receipt = document.getElementById('printable-receipt');
     return {
@@ -142,10 +151,60 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ transaction, customer, onCl
   };
 
   useEffect(() => {
+    if (!transaction) return;
+    const handler = (event: Event) => {
+      const id = (event as CustomEvent<{ id?: string }>).detail?.id;
+      if (!id || id === transaction.id) setSignedTick(tick => tick + 1);
+    };
+    window.addEventListener(ZATCA_INVOICE_SIGNED_EVENT, handler);
+    return () => window.removeEventListener(ZATCA_INVOICE_SIGNED_EVENT, handler);
+  }, [transaction?.id]);
+
+  /*
+   * Auto-print waits for the invoice hash, which is computed asynchronously a tick
+   * after the sale (and on the very first sale also waits on ECDSA key generation).
+   * Printing on a fixed short delay would put a blank hash on the paper receipt.
+   * PRINT_HASH_TIMEOUT_MS bounds the wait so a crypto failure can never stop a
+   * receipt from printing — it just prints without the hash, as it did before.
+   */
+  useEffect(() => {
     if (!transaction || printedRef.current === transaction.id) return;
     printedRef.current = transaction.id;
-    const timer = window.setTimeout(() => { void handlePrint(); }, 250);
-    return () => window.clearTimeout(timer);
+
+    let cancelled = false;
+    let settleTimer = 0;
+    let deadlineTimer = 0;
+
+    const print = () => {
+      if (cancelled) return;
+      cancelled = true;
+      window.clearTimeout(settleTimer);
+      window.clearTimeout(deadlineTimer);
+      window.removeEventListener(ZATCA_INVOICE_SIGNED_EVENT, onSigned);
+      void handlePrint();
+    };
+
+    const onSigned = (event: Event) => {
+      const id = (event as CustomEvent<{ id?: string }>).detail?.id;
+      if (id && id !== transaction.id) return;
+      // Let the re-render commit the hash into the DOM before snapshotting it.
+      window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(print, PRINT_SETTLE_MS);
+    };
+
+    if (transaction.invoiceHash) {
+      settleTimer = window.setTimeout(print, PRINT_SETTLE_MS);
+    } else {
+      window.addEventListener(ZATCA_INVOICE_SIGNED_EVENT, onSigned);
+      deadlineTimer = window.setTimeout(print, PRINT_HASH_TIMEOUT_MS);
+    }
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(settleTimer);
+      window.clearTimeout(deadlineTimer);
+      window.removeEventListener(ZATCA_INVOICE_SIGNED_EVENT, onSigned);
+    };
   }, [transaction?.id]);
 
   if (!transaction) return null;
@@ -326,11 +385,11 @@ ${arReceipt.total}: ${formatSar(transaction.total)}
             <div className="mt-3 py-2 px-2.5 bg-green-50/50 border border-green-100 rounded-lg text-[9px] font-mono text-gray-500 leading-normal mb-4">
               <div className="flex items-center gap-1 text-green-700 font-bold mb-1 text-[10px]">
                 <CheckCircle size={10} className="text-green-600" />
-                <span>فاتورة موقعة محلياً بانتظار الربط</span>
+                <span>{transaction.cryptographicSignature ? 'فاتورة موقعة محلياً بانتظار الربط' : 'جارٍ توقيع الفاتورة محلياً'}</span>
               </div>
               <p className="truncate"><span className="text-gray-400">UUID:</span> {transaction.uuid}</p>
-              <p className="truncate"><span className="text-gray-400">Hash:</span> {transaction.invoiceHash}</p>
-              <p className="truncate"><span className="text-gray-400">Signature:</span> {transaction.cryptographicSignature}</p>
+              <p className="truncate"><span className="text-gray-400">Hash:</span> {transaction.invoiceHash || '—'}</p>
+              <p className="truncate"><span className="text-gray-400">Signature:</span> {transaction.cryptographicSignature || '—'}</p>
               <p><span className="text-gray-400">Seq No:</span> {transaction.invoiceSeqNum} | <span className="text-gray-400">Status:</span> <span className={transaction.zatcaStatus === 'reported' ? 'text-green-600 font-bold' : 'text-amber-600 font-bold font-sans'}>{transaction.zatcaStatus?.toUpperCase()}</span></p>
             </div>
           )}

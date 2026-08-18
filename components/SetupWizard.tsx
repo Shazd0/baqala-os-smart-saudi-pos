@@ -6,29 +6,24 @@ import { APP_LOGO_DATA_URL } from '../services/appLogo';
 import LogoCropModal from './LogoCropModal';
 import { Database, Image as ImageIcon, Loader2, LockKeyhole, Pencil, RefreshCw, ShieldCheck, Store, Upload } from 'lucide-react';
 
-const APP_NAME = 'Oasis Dine RMS';
+const APP_NAME = 'Baqala OS';
 
 const NAME_TRANSLATIONS: Record<string, string> = {
-  oasis: 'واحة',
-  dine: 'داين',
-  restaurant: 'مطعم',
-  cafe: 'كافيه',
-  coffee: 'قهوة',
-  kitchen: 'مطبخ',
-  grill: 'مشويات',
-  burger: 'برجر',
-  pizza: 'بيتزا',
-  shawarma: 'شاورما',
-  house: 'هاوس',
-  palace: 'قصر',
-  lounge: 'لاونج',
+  baqala: 'بقالة',
+  grocery: 'بقالة',
+  mart: 'مارت',
+  market: 'سوق',
+  store: 'متجر',
+  super: 'سوبر',
+  fresh: 'فريش',
   bakery: 'مخبز',
   sweets: 'حلويات',
-  fresh: 'فريش',
   golden: 'الذهبي',
   royal: 'الملكي',
   saudi: 'السعودي',
   arabian: 'العربي',
+  house: 'هاوس',
+  oasis: 'واحة',
 };
 
 function arabicNameFromEnglish(value: string) {
@@ -119,7 +114,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     setLogoCropFile(file);
   };
 
-  const inputClass = 'mt-2 h-12 w-full rounded-xl border-[1.5px] border-transparent bg-[#E9E9EB] px-4 text-sm font-semibold text-[#1C1C1E] placeholder:text-[#A9A9A9] outline-none [transition:all_0.2s_cubic-bezier(0.4,0,0.2,1)] focus:border-[#007AFF] focus:bg-white focus:shadow-[0_0_0_4px_rgba(0,122,255,0.08)] disabled:cursor-not-allowed disabled:opacity-60';
+  const inputClass = 'mt-2 h-12 w-full rounded-xl border-[1.5px] border-transparent bg-[#E7EEE9] px-4 text-sm font-semibold text-[#1A211C] placeholder:text-[#A3ADA7] outline-none [transition:all_0.2s_cubic-bezier(0.4,0,0.2,1)] focus:border-[#1E6B48] focus:bg-white focus:shadow-[0_0_0_4px_rgba(30,107,72,0.08)] disabled:cursor-not-allowed disabled:opacity-60';
   const fieldLabelClass = 'text-sm font-bold text-slate-900';
   const microCopyClass = 'mt-1 text-[11px] font-medium leading-snug text-slate-400';
 
@@ -128,7 +123,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
       <div className="relative flex max-h-[calc(100vh-48px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white p-8 shadow-[0_12px_48px_rgba(0,0,0,0.04)]">
         <div className="mb-6 flex items-start justify-between gap-6">
           <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-[#1E6B48] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
               <Store size={28} />
             </div>
             <div>
@@ -139,7 +134,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                   Firestore ready
                 </span>
               </div>
-              <p className="mt-2 text-sm font-medium leading-6 text-[#8E8E93]">Enter the restaurant identity once. After this, the app will only ask for login.</p>
+              <p className="mt-2 text-sm font-medium leading-6 text-[#8E8E93]">Enter the store identity once. After this, the app will only ask for login.</p>
             </div>
           </div>
           <div className="hidden items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 md:flex">
@@ -157,20 +152,20 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
             <div className="grid gap-6 md:grid-cols-2">
               <section className="space-y-4 rounded-2xl border border-slate-100 bg-white">
                 <div>
-                  <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-[#007AFF]">1. Corporate Identity</p>
+                  <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-[#1E6B48]">1. Corporate Identity</p>
                   <div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-xs font-semibold text-emerald-800">
-                    License activation is completed before this setup screen. Now add the restaurant display identity used on receipts, reports, and customer screens.
+                    License activation is completed before this setup screen. Now add the store name used on receipts and reports.
                   </div>
                   <div className="space-y-4">
                     <div>
-                      <label className={fieldLabelClass}>Restaurant Name (English)</label>
-                      <input required className={inputClass} placeholder="e.g., Oasis Dine" value={config.nameEn} onChange={e => updateEnglishName(e.target.value)} />
+                      <label className={fieldLabelClass}>Store Name (English)</label>
+                      <input required className={inputClass} placeholder="e.g., Al Noor Baqala" value={config.nameEn} onChange={e => updateEnglishName(e.target.value)} />
                     </div>
                     <div>
                       <div className="flex items-center justify-between gap-3">
-                        <label className={fieldLabelClass}>Restaurant Name (Arabic)</label>
+                        <label className={fieldLabelClass}>Store Name (Arabic)</label>
                         <div className="flex items-center gap-2">
-                          <button type="button" onClick={regenerateArabicName} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-[11px] font-black text-[#007AFF]">
+                          <button type="button" onClick={regenerateArabicName} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-[11px] font-black text-[#1E6B48]">
                             <RefreshCw size={12} /> Auto
                           </button>
                           <button type="button" onClick={() => { setArabicNameEditable(true); setArabicNameTouched(true); }} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black text-slate-600">
@@ -182,7 +177,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                         required
                         readOnly={!arabicNameEditable}
                         className={`${inputClass} text-right ${!arabicNameEditable ? 'cursor-default bg-slate-100' : ''}`}
-                        placeholder="مثال: واحة داين"
+                        placeholder="مثال: بقالة النور"
                         value={config.nameAr}
                         onChange={e => {
                           setArabicNameTouched(true);
@@ -193,17 +188,17 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                     </div>
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                       <div className="mb-3 flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#007AFF]">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#1E6B48]">
                           <ImageIcon size={20} />
                         </div>
                         <div>
-                          <label className={fieldLabelClass}>Restaurant Logo</label>
+                          <label className={fieldLabelClass}>Store Logo</label>
                           <p className={microCopyClass}>Upload a logo for receipts, reports, and customer screens.</p>
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-3">
                         <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-white">
-                          <img src={config.logoDataUrl || APP_LOGO_DATA_URL} alt="Restaurant logo" className="h-full w-full object-contain p-2" />
+                          <img src={config.logoDataUrl || APP_LOGO_DATA_URL} alt="Store logo" className="h-full w-full object-contain p-2" />
                         </div>
                         <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100">
                           <Upload size={16} />
@@ -236,7 +231,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
 
               <section className="space-y-4 rounded-2xl border border-slate-100 bg-white">
                 <div>
-                  <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-[#007AFF]">2. Master Admin Account</p>
+                  <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-[#1E6B48]">2. Master Admin Account</p>
                   <div className="space-y-4">
                     <div>
                       <label className={fieldLabelClass}>Administrator Name</label>
@@ -249,7 +244,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                     <div>
                       <div className="flex items-center justify-between">
                         <label className={fieldLabelClass}>Password</label>
-                        <button type="button" disabled={isProvisioning} onClick={() => setShowPassword(value => !value)} className="text-xs font-bold text-[#007AFF] [transition:all_0.2s_cubic-bezier(0.4,0,0.2,1)] hover:text-[#006EE6] active:scale-[0.97] disabled:opacity-50">
+                        <button type="button" disabled={isProvisioning} onClick={() => setShowPassword(value => !value)} className="text-xs font-bold text-[#1E6B48] [transition:all_0.2s_cubic-bezier(0.4,0,0.2,1)] hover:text-[#006EE6] active:scale-[0.97] disabled:opacity-50">
                           {showPassword ? 'Hide' : 'Show'}
                         </button>
                       </div>
@@ -261,10 +256,10 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                     </div>
                     <div className="rounded-2xl bg-slate-50 p-4">
                       <div className="flex items-center gap-3 text-slate-700">
-                        <Database size={18} className="text-[#007AFF]" />
+                        <Database size={18} className="text-[#1E6B48]" />
                         <p className="text-xs font-bold uppercase tracking-[0.14em]">Firebase Production Store</p>
                       </div>
-                      <p className="mt-2 text-xs font-medium leading-relaxed text-slate-400">Staff credentials and restaurant identity are written to the Firebase production workspace.</p>
+                      <p className="mt-2 text-xs font-medium leading-relaxed text-slate-400">Staff credentials and store identity are written to the Firebase production workspace.</p>
                     </div>
                   </div>
                 </div>
@@ -273,7 +268,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
 
             {error && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</div>}
 
-            <button disabled={isProvisioning} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#007AFF] text-sm font-bold tracking-tight text-white shadow-[0_12px_30px_rgba(0,122,255,0.2)] [transition:all_0.2s_cubic-bezier(0.4,0,0.2,1)] hover:bg-[#006EE6] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-70">
+            <button disabled={isProvisioning} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#1E6B48] text-sm font-bold tracking-tight text-white shadow-[0_12px_30px_rgba(30,107,72,0.2)] [transition:all_0.2s_cubic-bezier(0.4,0,0.2,1)] hover:bg-[#18583B] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-70">
               {isProvisioning ? <Loader2 className="animate-spin" size={18} /> : <Database size={18} />}
               {isProvisioning ? 'Creating Firebase production workspace...' : 'Create Firebase Production Workspace'}
             </button>
@@ -283,7 +278,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
         {isProvisioning && (
           <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-white/70 backdrop-blur-sm">
             <div className="flex flex-col items-center gap-3 rounded-2xl border border-slate-100 bg-white px-8 py-6 shadow-[0_12px_36px_rgba(0,0,0,0.08)]">
-              <Loader2 className="animate-spin text-[#007AFF]" size={28} />
+              <Loader2 className="animate-spin text-[#1E6B48]" size={28} />
               <p className="text-sm font-bold text-slate-900">Provisioning secure Firebase workspace</p>
               <p className="text-xs font-medium text-slate-400">Preparing production-ready activation data.</p>
             </div>

@@ -1,6 +1,6 @@
 {
-  "name": "Oasis Dine RMS - Saudi Restaurant POS",
-  "description": "A compliant restaurant management system and point of sale for Saudi Arabia, featuring bilingual FOH, KDS, recipe inventory, SFDA menu data, and ZATCA-ready invoices.",
+  "name": "Baqala OS - Saudi Grocery POS",
+  "description": "A bilingual grocery point of sale for Saudi baqalas, with barcode checkout, inventory, credit book, and ZATCA-ready invoices.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

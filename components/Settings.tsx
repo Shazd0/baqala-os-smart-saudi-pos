@@ -1,34 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HardwareConfig, Language, StoreConfig, ZatcaState } from '../types';
 import { TRANSLATIONS } from '../constants';
 import { StorageService } from '../services/storageService';
-import { Image as ImageIcon, KeyRound, Printer, Save, ShieldCheck, Trash2, Upload } from 'lucide-react';
+import { Database, FolderOpen, Image as ImageIcon, KeyRound, Printer, Save, ShieldCheck, Trash2, Upload } from 'lucide-react';
 import { firstError, nonNegativeNumber } from '../services/validationService';
 import { APP_LOGO_DATA_URL } from '../services/appLogo';
 import { useToast } from './Toast';
 import LogoCropModal from './LogoCropModal';
 
 const NAME_TRANSLATIONS: Record<string, string> = {
-  oasis: 'واحة',
-  dine: 'داين',
-  restaurant: 'مطعم',
-  cafe: 'كافيه',
-  coffee: 'قهوة',
-  kitchen: 'مطبخ',
-  grill: 'مشويات',
-  burger: 'برجر',
-  pizza: 'بيتزا',
-  shawarma: 'شاورما',
-  house: 'هاوس',
-  palace: 'قصر',
-  lounge: 'لاونج',
+  baqala: 'بقالة',
+  grocery: 'بقالة',
+  mart: 'مارت',
+  market: 'سوق',
+  store: 'متجر',
+  super: 'سوبر',
+  fresh: 'فريش',
   bakery: 'مخبز',
   sweets: 'حلويات',
-  fresh: 'فريش',
   golden: 'الذهبي',
   royal: 'الملكي',
   saudi: 'السعودي',
   arabian: 'العربي',
+  house: 'هاوس',
+  oasis: 'واحة',
 };
 
 function arabicNameFromEnglish(value: string) {
@@ -149,6 +144,66 @@ const Settings: React.FC<SettingsProps> = ({ lang, onUpdate }) => {
     setHardwareDetectMessage('Browser printing uses the operating system print dialog. Scanner mode is set to USB keyboard.');
   };
 
+  // ── Backup & Data ────────────────────────────────────────────────────────────
+  const isElectron = StorageService.isElectron();
+  const [backupSettings, setBackupSettings] = useState<{
+    autoBackup: boolean;
+    backupFolder: string;
+    lastBackupAt?: number | null;
+    lastBackupPath?: string | null;
+  }>({ autoBackup: false, backupFolder: '' });
+  const [backupBusy, setBackupBusy] = useState(false);
+
+  useEffect(() => {
+    if (!isElectron) return;
+    StorageService.getBackupSettings().then(setBackupSettings).catch(() => {});
+  }, [isElectron]);
+
+  const handleSelectBackupFolder = async () => {
+    const folder = await StorageService.selectBackupFolder();
+    if (!folder) return;
+    const updated = { ...backupSettings, backupFolder: folder };
+    setBackupSettings(updated);
+    await StorageService.saveBackupSettings(updated);
+    toast(lang === 'ar' ? 'تم تحديد مجلد النسخ الاحتياطي.' : 'Backup folder selected.', 'success');
+  };
+
+  const handleBackupNow = async () => {
+    setBackupBusy(true);
+    try {
+      const result = await StorageService.exportBackup(backupSettings.backupFolder || undefined);
+      if (result.success) {
+        const updated = { ...backupSettings, lastBackupAt: Date.now(), lastBackupPath: result.path };
+        setBackupSettings(updated);
+        toast(lang === 'ar' ? `تم حفظ النسخة الاحتياطية: ${result.path}` : `Backup saved: ${result.path}`, 'success', 6000);
+      } else {
+        toast(lang === 'ar' ? 'فشل النسخ الاحتياطي.' : 'Backup failed.', 'error');
+      }
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const handleAutoBackupToggle = async (enabled: boolean) => {
+    const updated = { ...backupSettings, autoBackup: enabled };
+    setBackupSettings(updated);
+    await StorageService.saveBackupSettings(updated);
+  };
+
+  const handleRestoreBackup = async () => {
+    setBackupBusy(true);
+    try {
+      const result = await StorageService.importBackup();
+      if (result.success) {
+        toast(lang === 'ar' ? 'تم استعادة النسخة الاحتياطية. أعد تشغيل التطبيق لتطبيق التغييرات.' : 'Backup restored. Restart the app to apply changes.', 'success', 8000);
+      } else {
+        toast(lang === 'ar' ? 'فشل استعادة النسخة الاحتياطية.' : 'Restore failed or was cancelled.', 'warning');
+      }
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
   return (
     <div className="p-6 h-full flex flex-col bg-gray-50 overflow-y-auto pb-20">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">{t.storeSettings}</h2>
@@ -163,20 +218,20 @@ const Settings: React.FC<SettingsProps> = ({ lang, onUpdate }) => {
                 <div>
                   <h4 className="font-black text-amber-900">Corporate Identity</h4>
                   <p className="text-xs text-amber-800 mt-1">
-                    Restaurant display names can be edited here. CR, VAT, address, phone, currency, and VAT rate stay locked from first setup.
+                    Store names can be edited here. CR, VAT, address, phone, currency, and VAT rate stay locked from first setup.
                   </p>
                 </div>
               </div>
               <div className="mb-4 grid gap-3">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-black uppercase tracking-wide text-amber-700">Restaurant Display Names</p>
+                  <p className="text-xs font-black uppercase tracking-wide text-amber-700">Store names</p>
                   <button type="button" onClick={() => setIdentityEditable(value => !value)} className="rounded-full border border-amber-100 bg-white px-3 py-1 text-xs font-black text-amber-700">
                     {identityEditable ? 'Lock editing' : 'Edit name'}
                   </button>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
-                    <label className="block text-xs font-bold text-amber-800">Restaurant Name (English)</label>
+                    <label className="block text-xs font-bold text-amber-800">Store Name (English)</label>
                     <input
                       disabled={!identityEditable}
                       className="mt-1 w-full rounded-xl border border-amber-100 bg-white p-2 text-sm font-bold text-slate-900 disabled:bg-white/60"
@@ -186,8 +241,8 @@ const Settings: React.FC<SettingsProps> = ({ lang, onUpdate }) => {
                   </div>
                   <div>
                     <div className="flex items-center justify-between gap-2">
-                      <label className="block text-xs font-bold text-amber-800">Restaurant Name (Arabic)</label>
-                      <button type="button" disabled={!identityEditable} onClick={() => setConfig(current => ({ ...current, nameAr: arabicNameFromEnglish(current.nameEn || '') }))} className="text-[11px] font-black text-[#007AFF] disabled:opacity-40">
+                      <label className="block text-xs font-bold text-amber-800">Store Name (Arabic)</label>
+                      <button type="button" disabled={!identityEditable} onClick={() => setConfig(current => ({ ...current, nameAr: arabicNameFromEnglish(current.nameEn || '') }))} className="text-[11px] font-black text-[#1E6B48] disabled:opacity-40">
                         Auto-fill
                       </button>
                     </div>
@@ -225,7 +280,7 @@ const Settings: React.FC<SettingsProps> = ({ lang, onUpdate }) => {
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-800">
-                    {lang === 'ar' ? 'شعار المطعم' : 'Restaurant Company Logo'}
+                    {lang === 'ar' ? 'شعار المتجر' : 'Store logo'}
                   </label>
                   <p className="text-xs text-gray-500">
                     {lang === 'ar' ? 'يظهر في الفاتورة وتقارير PDF' : 'Shown on receipts and PDF exports'}
@@ -366,6 +421,86 @@ const Settings: React.FC<SettingsProps> = ({ lang, onUpdate }) => {
           </div>
           {zatca.csrPayload && (
             <textarea readOnly className="mt-4 w-full h-24 border rounded p-2 text-xs font-mono" value={zatca.csrPayload} />
+          )}
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <h3 className="font-bold text-lg mb-4 text-gray-700 border-b pb-2 flex items-center gap-2">
+            <Database size={20} />
+            {lang === 'ar' ? 'النسخ الاحتياطي والبيانات' : 'Backup & Data'}
+          </h3>
+          {!isElectron ? (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+              {lang === 'ar'
+                ? 'النسخ الاحتياطي متاح في تطبيق سطح المكتب.'
+                : 'Backup is available in the desktop app.'}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <label className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 p-3">
+                <div>
+                  <p className="font-semibold text-sm text-gray-800">
+                    {lang === 'ar' ? 'النسخ الاحتياطي التلقائي' : 'Auto Backup'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {lang === 'ar' ? 'يتم نسخ البيانات تلقائياً عند تشغيل التطبيق.' : 'Backs up data automatically on app start.'}
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  className="w-5 h-5 accent-[#1E6B48]"
+                  checked={backupSettings.autoBackup}
+                  onChange={e => handleAutoBackupToggle(e.target.checked)}
+                />
+              </label>
+
+              <div className="rounded-xl border border-gray-100 p-3 space-y-2">
+                <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+                  {lang === 'ar' ? 'مجلد النسخ الاحتياطي' : 'Backup Folder'}
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="flex-1 truncate text-sm text-gray-700 font-mono bg-gray-50 border rounded px-2 py-1">
+                    {backupSettings.backupFolder || (lang === 'ar' ? 'لم يُحدَّد' : 'Not set')}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleSelectBackupFolder}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#1E6B48] text-[#1E6B48] text-sm font-semibold hover:bg-[#1E6B48]/5"
+                  >
+                    <FolderOpen size={15} />
+                    {lang === 'ar' ? 'تغيير' : 'Change'}
+                  </button>
+                </div>
+              </div>
+
+              {backupSettings.lastBackupAt && (
+                <p className="text-xs text-gray-500">
+                  {lang === 'ar' ? 'آخر نسخة: ' : 'Last backup: '}
+                  {new Date(backupSettings.lastBackupAt).toLocaleString()}
+                </p>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleBackupNow}
+                  disabled={backupBusy}
+                  className="flex-1 flex items-center justify-center gap-2 bg-[#1E6B48] text-white rounded-xl py-2.5 font-bold text-sm disabled:opacity-50"
+                >
+                  <Database size={16} />
+                  {lang === 'ar' ? 'نسخ احتياطي الآن' : 'Backup Now'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRestoreBackup}
+                  disabled={backupBusy}
+                  className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 rounded-xl py-2.5 font-bold text-sm disabled:opacity-50 hover:border-[#1E6B48] hover:text-[#1E6B48]"
+                >
+                  <Upload size={16} />
+                  {lang === 'ar' ? 'استعادة نسخة' : 'Restore Backup'}
+                </button>
+              </div>
+            </div>
           )}
         </div>
 

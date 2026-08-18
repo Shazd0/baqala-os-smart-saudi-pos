@@ -1,0 +1,14 @@
+{
+  "name": "baqala-license-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Worker: license validation API for Baqala OS",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "seed": "node scripts/seed-licenses.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.123.0"
+  }
+}

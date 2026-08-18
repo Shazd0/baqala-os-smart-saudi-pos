@@ -69,11 +69,11 @@ const LogoCropModal: React.FC<LogoCropModalProps> = ({ file, onCancel, onApply }
       <div className="w-full max-w-lg rounded-3xl border border-slate-100 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.28)]">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-[#007AFF]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--ios-accent-soft)] text-[var(--ios-accent)]">
               <ImageIcon size={22} />
             </div>
             <div>
-              <h2 className="text-lg font-black text-slate-900">Crop Restaurant Logo</h2>
+              <h2 className="text-lg font-black text-slate-900">Crop store logo</h2>
               <p className="mt-1 text-xs font-medium leading-relaxed text-slate-400">
                 Adjust the logo manually before saving it to receipts and reports.
               </p>
@@ -93,7 +93,7 @@ const LogoCropModal: React.FC<LogoCropModalProps> = ({ file, onCancel, onApply }
               style={{ transform: previewTransform }}
             />
           ) : (
-            <Loader2 className="animate-spin text-[#007AFF]" />
+            <Loader2 className="animate-spin text-[#1E6B48]" />
           )}
         </div>
 
@@ -122,7 +122,7 @@ const LogoCropModal: React.FC<LogoCropModalProps> = ({ file, onCancel, onApply }
             type="button"
             onClick={applyCrop}
             disabled={processing}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#007AFF] px-4 py-3 text-sm font-bold text-white shadow-[0_12px_30px_rgba(0,122,255,0.22)] transition-all active:scale-[0.97] disabled:opacity-60"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#1E6B48] px-4 py-3 text-sm font-bold text-white shadow-[0_12px_30px_rgba(30,107,72,0.22)] transition-all active:scale-[0.97] disabled:opacity-60"
           >
             {processing ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
             Apply Crop

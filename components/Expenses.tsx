@@ -165,7 +165,7 @@ const Expenses: React.FC<ExpensesProps> = ({ lang, onExpensesChange }) => {
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
         <div>
           <h2 className="text-3xl font-black text-slate-900">{t.expenses}</h2>
-          <p className="text-sm text-slate-500 mt-1">Track restaurant operating costs and export professional reports.</p>
+          <p className="text-sm text-slate-500 mt-1">Track store operating costs and export reports.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-xs font-bold text-slate-500">

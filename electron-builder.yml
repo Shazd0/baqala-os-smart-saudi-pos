@@ -1,0 +1,43 @@
+appId: com.baqala.pos
+productName: Baqala OS
+copyright: Copyright © 2026 Baqala OS
+electronUpdaterCompatibility: ">=2.16"
+
+directories:
+  output: dist-electron
+
+files:
+  - dist/**
+  - electron/**
+  - node_modules/**
+  - package.json
+
+publish:
+  provider: github
+  owner: Shazd0
+  repo: baqala-os-smart-saudi-pos
+  releaseType: release
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: public/favicon.ico
+  # Windows 7-Zip cannot create macOS symlinks in the winCodeSign cache without admin.
+  # Unsigned builds skip that extract; rcedit/icon stamping still works via the cached tools when present.
+  signAndEditExecutable: false
+
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  category: public.app-category.business
+
+linux:
+  target: AppImage
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

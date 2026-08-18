@@ -49,6 +49,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, setCustomers, lang }) 
       setCustomers(StorageService.getCustomers());
       setIsAdding(false);
       setNewCustomer({});
+      toast(lang === 'ar' ? `✓ تمت إضافة ${c.name}` : `✓ ${c.name} added`, 'success');
   };
 
   const handlePayDebt = (e: React.FormEvent) => {
@@ -61,6 +62,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, setCustomers, lang }) 
     if (payModal) {
       StorageService.updateCustomerBalance(payModal.id, -payAmount);
       setCustomers(StorageService.getCustomers());
+      toast(lang === 'ar' ? `✓ تم تسجيل الدفع` : `✓ Payment recorded`, 'success');
       setPayModal(null);
       setPayAmount(0);
     }
@@ -69,29 +71,39 @@ const Customers: React.FC<CustomersProps> = ({ customers, setCustomers, lang }) 
   const filtered = customers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.phone.includes(searchTerm));
 
   return (
-    <div className="p-6 h-full flex flex-col bg-gray-50">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">{t.customers}</h2>
+    <div className="flex h-full flex-col bg-[var(--ios-bg)] p-4 sm:p-6">
+      <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3 sm:mb-6">
+        <h2 className="text-2xl font-bold text-[var(--ios-text)]">{t.customers}</h2>
         <button 
           onClick={() => setIsAdding(true)}
-          className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
+          className="flex items-center gap-2 rounded-xl bg-[#1E6B48] px-4 text-sm font-bold text-white shadow-md shadow-emerald-700/20 transition-colors hover:bg-[#18583b]"
         >
-          <Plus size={20} />
+          <Plus size={18} />
           <span>{t.newCustomer}</span>
         </button>
       </div>
 
-      <div className="relative mb-6">
+      <div className="relative mb-4 shrink-0 sm:mb-6">
          <input 
-             className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-sm bg-white text-gray-900"
+             className={`w-full rounded-xl border border-[var(--ios-divider)] bg-white py-3 text-[var(--ios-text)] shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E6B48]/40 ${lang === 'ar' ? 'pr-10 pl-4' : 'pl-10 pr-4'}`}
              placeholder={t.search}
              value={searchTerm}
              onChange={e => setSearchTerm(e.target.value)}
          />
-         <Search className={`absolute ${lang === 'ar' ? 'right-3' : 'left-3'} top-3.5 text-gray-400`} size={20} />
+         <Search className={`absolute top-3.5 text-[var(--ios-tertiary)] ${lang === 'ar' ? 'right-3' : 'left-3'}`} size={20} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto pb-20">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto pb-20 sm:grid-cols-2 xl:grid-cols-3">
+        {filtered.length === 0 && (
+          <div className="col-span-full py-16 text-center text-gray-400">
+            <User size={36} className="mx-auto mb-3 opacity-30" />
+            <p className="font-semibold text-sm">
+              {searchTerm
+                ? (lang === 'ar' ? 'لا يوجد عميل بهذا الاسم أو الجوال' : 'No customer matches your search')
+                : (lang === 'ar' ? 'لا يوجد عملاء بعد' : 'No customers yet')}
+            </p>
+          </div>
+        )}
         {filtered.map(c => (
           <div key={c.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col">
             <div className="flex justify-between items-start mb-2">
@@ -108,7 +120,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, setCustomers, lang }) 
               </div>
               {c.balance > 0 && (
                 <span className="px-2 py-1 bg-red-100 text-red-600 text-xs font-bold rounded-full">
-                  Credit
+                  {lang === 'ar' ? 'مديون' : 'Credit'}
                 </span>
               )}
             </div>
@@ -118,22 +130,24 @@ const Customers: React.FC<CustomersProps> = ({ customers, setCustomers, lang }) 
                   <div className="bg-green-100 p-1.5 rounded-full text-green-600"><DollarSign size={14} /></div>
                   <div>
                      <p className="text-[10px] text-gray-500 uppercase">{t.balance}</p>
-                     <p className={`font-bold ${c.balance > 0 ? 'text-red-600' : 'text-gray-900'}`}>{c.balance.toFixed(0)}</p>
+                     <p className={`font-bold ${c.balance > 0 ? 'text-red-600' : 'text-gray-900'}`}>{c.balance.toFixed(2)} SAR</p>
                   </div>
                </div>
             </div>
 
             <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
               <div>
-                <p className="text-xs text-gray-500">Last Visit</p>
+                <p className="text-xs text-gray-500">{lang === 'ar' ? 'آخر زيارة' : 'Last Visit'}</p>
                 <p className="text-xs font-medium text-gray-900">{new Date(c.lastVisit).toLocaleDateString()}</p>
               </div>
-              <button 
-                onClick={() => setPayModal({id: c.id, name: c.name})}
-                className="px-3 py-1.5 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800"
-              >
-                {t.payDebt}
-              </button>
+              {c.balance > 0 && (
+                <button 
+                  onClick={() => setPayModal({id: c.id, name: c.name})}
+                  className="px-3 py-1.5 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800"
+                >
+                  {t.payDebt}
+                </button>
+              )}
             </div>
           </div>
         ))}

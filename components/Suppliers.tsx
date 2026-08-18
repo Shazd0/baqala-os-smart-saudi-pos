@@ -41,12 +41,6 @@ const Suppliers: React.FC<SuppliersProps> = ({ lang }) => {
       optionalSaudiPhone(editing.phone, 'Supplier phone')
     );
     if (validationError) { setError(lang === 'ar' ? `تحقق من البيانات: ${validationError}` : validationError); return; }
-    toast(
-      editing.id
-        ? (lang === 'ar' ? `✓ تم تعديل ${editing.name}` : `✓ ${editing.name} updated`)
-        : (lang === 'ar' ? `✓ تمت إضافة ${editing.name}` : `✓ ${editing.name} added`),
-      'success'
-    );
     const saved = StorageService.saveSupplier({
       id: editing.id || '',
       name: editing.name!,
@@ -58,6 +52,12 @@ const Suppliers: React.FC<SuppliersProps> = ({ lang }) => {
     });
     setSuppliers(saved);
     setShowModal(false);
+    toast(
+      editing.id
+        ? (lang === 'ar' ? `✓ تم تعديل ${editing.name}` : `✓ ${editing.name} updated`)
+        : (lang === 'ar' ? `✓ تمت إضافة ${editing.name}` : `✓ ${editing.name} added`),
+      'success'
+    );
   };
 
   const handleDelete = (id: string) => {

@@ -3,7 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Oasis Dine RMS</title>
+    <!--
+      Content-Security-Policy:
+      - default-src 'self'            : only load resources from the same origin
+      - script-src 'self'             : no inline scripts, no eval
+      - connect-src 'self' https:     : fetch/XHR to same origin + HTTPS (Firebase, ZATCA)
+      - img-src 'self' data: blob:    : allow data-URIs for QR codes / logos
+      - worker-src blob:              : allow Web Workers (WASM for crypto)
+      - style-src 'self' 'unsafe-inline': Tailwind injects runtime styles
+      - font-src 'self' data:         : embedded Tajawal font
+      NOTE: In Electron the webRequest CSP header (main.cjs) takes precedence.
+    -->
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self';
+                   script-src 'self';
+                   connect-src 'self' https: wss:;
+                   img-src 'self' data: blob:;
+                   worker-src blob:;
+                   style-src 'self' 'unsafe-inline';
+                   font-src 'self' data:;
+                   object-src 'none';
+                   base-uri 'self';" />
+    <title>Baqala OS</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 </head>
   <body>

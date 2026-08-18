@@ -223,6 +223,12 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onInvento
           <button onClick={() => setShowPurchaseModal(true)} className="bg-white border text-gray-700 px-3 py-2 rounded-lg flex items-center gap-2 text-sm">+ {lang === 'ar' ? 'فاتورة شراء' : 'Purchase'}</button>
           <button onClick={() => setShowHistory(true)} className="bg-white border text-gray-700 px-3 py-2 rounded-lg flex items-center gap-2 text-sm"><History size={18} /> History</button>
           <button
+            onClick={() => setIsAdding(true)}
+            className="bg-[#1E6B48] hover:bg-[#18583b] text-white px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-bold shadow-md shadow-emerald-700/20 btn-spring"
+          >
+            <Edit2 size={16} /> {lang === 'ar' ? '+ منتج جديد' : '+ Add Product'}
+          </button>
+          <button
             onClick={() => setShowReorderModal(true)}
             className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-xl flex items-center gap-2 text-sm btn-spring shadow-md shadow-green-500/25"
             title={lang === 'ar' ? 'إرسال طلب للمورد عبر واتساب' : 'Send WhatsApp reorder to supplier'}
@@ -268,6 +274,25 @@ const Inventory: React.FC<InventoryProps> = ({ products, onAddProduct, onInvento
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
+              {filteredProducts.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="py-16 text-center">
+                    <div className="text-gray-400 text-sm font-semibold">
+                      {searchTerm || filterLowStock
+                        ? (lang === 'ar' ? 'لا توجد منتجات تطابق البحث' : 'No products match your search')
+                        : (lang === 'ar' ? 'لا توجد منتجات بعد — أضف أول منتج' : 'No products yet — add your first product')}
+                    </div>
+                    {!searchTerm && !filterLowStock && (
+                      <button
+                        onClick={() => setIsAdding(true)}
+                        className="mt-4 bg-[#1E6B48] text-white px-5 py-2 rounded-xl text-sm font-bold"
+                      >
+                        {lang === 'ar' ? '+ أضف منتجاً' : '+ Add Product'}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              )}
               {filteredProducts.map(p => {
                   const expiring = isExpiringSoon(p.expiryDate);
                   const expired = isExpired(p.expiryDate);

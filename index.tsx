@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import CustomerDisplay from './components/CustomerDisplay';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -9,8 +10,10 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
+const isCustomerDisplay = window.location.hash === '#customer-display';
+
 root.render(
   <React.StrictMode>
-    <App />
+    {isCustomerDisplay ? <CustomerDisplay /> : <App />}
   </React.StrictMode>
 );

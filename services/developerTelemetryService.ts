@@ -97,11 +97,13 @@ export function buildDeveloperBugReportPayload(
   };
 }
 
+// Bug reports are non-sensitive diagnostics. We use sessionStorage (cleared on
+// tab close) rather than localStorage to avoid persisting crash payloads across
+// sessions. In Electron the data never leaves the process anyway.
 function readQueuedReports(): DeveloperBugReportPayload[] {
   if (typeof window === 'undefined') return [];
-
   try {
-    const raw = window.localStorage.getItem(QUEUE_STORAGE_KEY);
+    const raw = window.sessionStorage.getItem(QUEUE_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.slice(-MAX_QUEUED_REPORTS) : [];
@@ -112,12 +114,11 @@ function readQueuedReports(): DeveloperBugReportPayload[] {
 
 function queueInBrowser(payload: DeveloperBugReportPayload) {
   if (typeof window === 'undefined') return;
-
   const nextQueue = [...readQueuedReports(), payload].slice(-MAX_QUEUED_REPORTS);
   try {
-    window.localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(nextQueue));
+    window.sessionStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(nextQueue));
   } catch {
-    // Telemetry must never block POS operations if the browser storage quota is full.
+    // Telemetry must never block POS operations if storage is full.
   }
 }
 

@@ -336,7 +336,7 @@ export interface StaffMember {
   branchIds?: string[];
   nameEn: string;
   nameAr: string;
-  role: 'cashier' | 'waiter' | 'chef' | 'manager' | 'driver';
+  role: 'cashier' | 'supervisor' | 'manager';
   quickPin?: string;
   phone?: string;
   nationalIdOrIqama?: string;
@@ -667,17 +667,40 @@ export interface Expense {
   date: number;
 }
 
+// ── Shift management ─────────────────────────────────────────────────────────
+
+export interface ShiftCashDenomination {
+  value: number;   // coin/note face value in SAR
+  count: number;
+}
+
 export interface Shift {
   id: string;
-  startTime: number;
-  endTime?: number;
-  startCash: number;
-  endCash?: number;
-  expectedCash?: number;
-  variance?: number;
-  salesTotal: number;
+  branchId: string;
+  openedBy: string;    // staff name
+  openedAt: number;    // unix ms
+  closedAt?: number;
   status: 'open' | 'closed';
-  operator: string;
+
+  // Cash counts
+  openingCash: number;               // declared cash in drawer at open
+  openingDenominations?: ShiftCashDenomination[];
+  closingCash?: number;              // declared cash at close
+  closingDenominations?: ShiftCashDenomination[];
+
+  // Reconciliation (computed at close)
+  expectedCash?: number;             // openingCash + cash sales - cash refunds
+  cashVariance?: number;             // closingCash - expectedCash
+  totalSales?: number;
+  totalCashSales?: number;
+  totalCardSales?: number;
+  totalRefunds?: number;
+  totalVat?: number;
+  invoiceCount?: number;
+
+  // Z-report
+  zReportPrinted?: boolean;
+  zReportAt?: number;
 }
 
 export interface HeldCart {
@@ -754,6 +777,22 @@ export interface ZatcaState {
   lastError?: string;
   lastReportAt?: number;
   autoRetryEnabled?: boolean;
+  /** PKCS#8 PEM private key generated during CSR — kept on-device only */
+  privateKeyPem?: string;
+  /** Base64 secret returned with the compliance CSID */
+  complianceSecretKey?: string;
+  /** Base64 secret returned with the production CSID */
+  productionSecretKey?: string;
+  /** Request ID returned from the compliance CSID endpoint */
+  complianceRequestId?: string;
+  /** Unix ms timestamp when the active certificate expires */
+  certExpiryTimestamp?: number;
+  /** Device serial number (CN) used in the CSR */
+  deviceSerial?: string;
+  /** Physical address submitted in the CSR */
+  csrAddress?: string;
+  /** Invoice type selected during CSR generation */
+  invoiceType?: 'simplified' | 'standard' | 'both';
 }
 
 export interface HardwareConfig {
